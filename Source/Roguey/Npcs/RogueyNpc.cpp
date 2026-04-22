@@ -1,4 +1,5 @@
 #include "RogueyNpc.h"
+#include "Roguey/Skills/RogueyStatType.h"
 
 ARogueyNpc::ARogueyNpc()
 {
@@ -13,6 +14,11 @@ void ARogueyNpc::BeginPlay()
 		CurrentHP = NpcMaxHP;
 		MaxHP     = NpcMaxHP;
 		SpawnTile = GetTileCoord();
+
+		StatPage.Get(ERogueyStatType::Melee).CurrentLevel   = NpcMeleeLevel;
+		StatPage.Get(ERogueyStatType::Melee).BaseLevel      = NpcMeleeLevel;
+		StatPage.Get(ERogueyStatType::Defence).CurrentLevel = NpcDefenceLevel;
+		StatPage.Get(ERogueyStatType::Defence).BaseLevel    = NpcDefenceLevel;
 	}
 }
 

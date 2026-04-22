@@ -4,6 +4,7 @@
 #include "RogueyConstants.h"
 #include "RogueyPawnState.h"
 #include "GameFramework/Character.h"
+#include "Roguey/Combat/RogueyEquipmentBonuses.h"
 #include "Roguey/Skills/RogueyStatPage.h"
 #include "RogueyPawn.generated.h"
 
@@ -81,6 +82,10 @@ public:
 	// Combat data — server only, no need to replicate
 	int32 LastAttackTick = 0;
 	int32 AttackCooldownTicks = 4;
+
+	// Equipment bonuses — zeroed until the Items system is built
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	FRogueyEquipmentBonuses EquipmentBonuses;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 AttackRange = 1;

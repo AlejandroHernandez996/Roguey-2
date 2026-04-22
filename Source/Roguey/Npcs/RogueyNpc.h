@@ -42,6 +42,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "NPC")
 	int32 NpcMaxHP = 100;
 
+	UPROPERTY(EditAnywhere, Category = "NPC|Stats")
+	int32 NpcMeleeLevel = 1;
+
+	UPROPERTY(EditAnywhere, Category = "NPC|Stats")
+	int32 NpcDefenceLevel = 1;
+
 	UPROPERTY(EditAnywhere, Category = "NPC|Behavior")
 	ENpcBehavior Behavior = ENpcBehavior::Defensive;
 

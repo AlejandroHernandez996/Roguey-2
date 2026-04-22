@@ -19,8 +19,7 @@ struct ROGUEY_API FRogueyStatPage
 		HpStat.CurrentLevel = 10;
 		HpStat.BaseLevel    = 10;
 		Stats.Add(ERogueyStatType::Hitpoints, HpStat);
-		Stats.Add(ERogueyStatType::Attack,     FRogueyStat());
-		Stats.Add(ERogueyStatType::Strength,   FRogueyStat());
+		Stats.Add(ERogueyStatType::Melee,      FRogueyStat());
 		Stats.Add(ERogueyStatType::Defence,    FRogueyStat());
 		Stats.Add(ERogueyStatType::Ranged,     FRogueyStat());
 		Stats.Add(ERogueyStatType::Magic,      FRogueyStat());

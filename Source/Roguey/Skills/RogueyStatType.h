@@ -7,8 +7,7 @@ UENUM(BlueprintType)
 enum class ERogueyStatType : uint8
 {
 	Hitpoints,
-	Attack,
-	Strength,
+	Melee,       // combined Attack+Strength — feeds both accuracy and max hit rolls
 	Defence,
 	Ranged,
 	Magic,
