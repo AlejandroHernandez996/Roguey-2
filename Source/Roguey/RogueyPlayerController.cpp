@@ -59,6 +59,12 @@ void ARogueyPlayerController::SetupInputComponent()
 
 		if (CameraZoomAction)
 			EIC->BindAction(CameraZoomAction, ETriggerEvent::Triggered, this, &ARogueyPlayerController::OnCameraZoom);
+
+		if (SecondaryModifierAction)
+		{
+			EIC->BindAction(SecondaryModifierAction, ETriggerEvent::Started,   this, &ARogueyPlayerController::OnSecondaryModifierStarted);
+			EIC->BindAction(SecondaryModifierAction, ETriggerEvent::Completed, this, &ARogueyPlayerController::OnSecondaryModifierCompleted);
+		}
 	}
 }
 
@@ -169,6 +175,16 @@ void ARogueyPlayerController::OnCameraRotateCompleted(const FInputActionValue& V
 	bShowMouseCursor = true;
 }
 
+void ARogueyPlayerController::OnSecondaryModifierStarted(const FInputActionValue& Value)
+{
+	bSecondaryModifierHeld = true;
+}
+
+void ARogueyPlayerController::OnSecondaryModifierCompleted(const FInputActionValue& Value)
+{
+	bSecondaryModifierHeld = false;
+}
+
 void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 {
 	if (bRotatingCamera) return;
@@ -187,5 +203,5 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 		FMath::FloorToInt(Hit.Location.Y / RogueyConstants::TileSize)
 	);
 
-	RogueyPawn->Server_RequestMoveTo(TargetTile);
+	RogueyPawn->Server_RequestMoveTo(TargetTile, !bSecondaryModifierHeld);
 }

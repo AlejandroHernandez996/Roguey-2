@@ -20,6 +20,9 @@ ARogueyPawn::ARogueyPawn()
 	GetCharacterMovement()->GravityScale = 0.f;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 
+	// We own position through TilePosition + OnRep_TilePosition — suppress UE's raw position replication
+	SetReplicateMovement(false);
+
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 }
@@ -82,7 +85,8 @@ void ARogueyPawn::Tick(float DeltaSeconds)
 	}
 
 	FVector Dir = (Target - Current).GetSafeNormal2D();
-	float StepSize = VisualMoveSpeed * DeltaSeconds;
+	float SpeedMult = (RunStepTile != FIntPoint(-1, -1)) ? 2.f : 1.f;
+	float StepSize = VisualMoveSpeed * SpeedMult * DeltaSeconds;
 
 	if (StepSize >= Dist)
 	{
@@ -96,14 +100,22 @@ void ARogueyPawn::Tick(float DeltaSeconds)
 	}
 }
 
-void ARogueyPawn::CommitMove(FIntVector2 NewTile)
+void ARogueyPawn::CommitMove(FIntVector2 NewTile, FIntVector2 RunStep)
 {
+	RunStepTile = FIntPoint(RunStep.X, RunStep.Y);
 	TilePosition = FIntPoint(NewTile.X, NewTile.Y);
+
+	if (RunStep != FIntVector2(-1, -1))
+		EnqueueVisualPosition(RunStep);
 	EnqueueVisualPosition(NewTile);
 }
 
 void ARogueyPawn::OnRep_TilePosition()
 {
+	// RunStepTile is applied before this callback fires (same replication bundle).
+	// Enqueue the intermediate step first so visual movement passes through both tiles.
+	if (RunStepTile != FIntPoint(-1, -1))
+		EnqueueVisualPosition(FIntVector2(RunStepTile.X, RunStepTile.Y));
 	EnqueueVisualPosition(FIntVector2(TilePosition.X, TilePosition.Y));
 }
 
@@ -118,7 +130,7 @@ void ARogueyPawn::EnqueueVisualPosition(FIntVector2 Tile)
 	TrueTileQueue.Enqueue(WorldPos);
 }
 
-void ARogueyPawn::Server_RequestMoveTo_Implementation(FIntPoint InTargetTile)
+void ARogueyPawn::Server_RequestMoveTo_Implementation(FIntPoint InTargetTile, bool bRunning)
 {
 	ARogueyGameMode* GameMode = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode());
 	if (!GameMode || !GameMode->GridManager || !GameMode->MovementManager) return;
@@ -134,7 +146,7 @@ void ARogueyPawn::Server_RequestMoveTo_Implementation(FIntPoint InTargetTile)
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid->GetGrid(), Start, Target);
 	if (!Path.IsValid()) return;
 
-	GameMode->MovementManager->RequestMove(this, Path);
+	GameMode->MovementManager->RequestMove(this, Path, bRunning);
 }
 
 void ARogueyPawn::SetPawnState(EPawnState NewState)
@@ -163,4 +175,5 @@ void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ARogueyPawn, CurrentHP);
 	DOREPLIFETIME(ARogueyPawn, MaxHP);
 	DOREPLIFETIME(ARogueyPawn, DestinationTile);
+	DOREPLIFETIME(ARogueyPawn, RunStepTile);
 }

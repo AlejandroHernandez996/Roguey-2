@@ -20,7 +20,7 @@ public:
 	virtual void RogueyTick(int32 TickIndex) override;
 
 	// Queue a path for a pawn — replaces any existing pending path
-	void RequestMove(ARogueyPawn* Pawn, FRogueyPath Path);
+	void RequestMove(ARogueyPawn* Pawn, FRogueyPath Path, bool bRunning = false);
 
 	// Cancel movement and return the pawn to Idle
 	void CancelMove(ARogueyPawn* Pawn);
@@ -34,6 +34,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<URogueyGridManager> GridManager;
 
-	// Not a UPROPERTY — FRogueyPath is a plain struct. Pawns are validated via IsValid() each tick.
+	// Not UPROPERTYs — plain structs / raw pointers validated via IsValid() each tick.
 	TMap<ARogueyPawn*, FRogueyPath> PendingPaths;
+	TSet<ARogueyPawn*> RunningPawns;
 };

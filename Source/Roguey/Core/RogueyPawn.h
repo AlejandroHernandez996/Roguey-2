@@ -39,12 +39,13 @@ public:
 	UFUNCTION()
 	void OnRep_TilePosition();
 
-	// Called server-side to commit the pawn to a new tile
-	void CommitMove(FIntVector2 NewTile);
+	// Called server-side to commit the pawn to a new tile.
+	// RunStep is the intermediate tile when running (two tiles per tick); pass (-1,-1) for a normal walk step.
+	void CommitMove(FIntVector2 NewTile, FIntVector2 RunStep = FIntVector2(-1, -1));
 
 	// Client calls this; server validates, pathfinds, and queues the move
 	UFUNCTION(Server, Reliable)
-	void Server_RequestMoveTo(FIntPoint TargetTile);
+	void Server_RequestMoveTo(FIntPoint TargetTile, bool bRunning);
 
 	// State — replicated for animation
 	UPROPERTY(ReplicatedUsing = OnRep_PawnState, BlueprintReadOnly)
@@ -71,6 +72,11 @@ public:
 
 	UPROPERTY(Replicated)
 	FIntPoint DestinationTile = FIntPoint(-1, -1);
+
+	// Intermediate tile when running (two tiles per tick). Replicated so clients can enqueue
+	// both steps in OnRep_TilePosition and double visual speed.
+	UPROPERTY(Replicated)
+	FIntPoint RunStepTile = FIntPoint(-1, -1);
 
 	bool IsDead() const { return PawnState == EPawnState::Dead; }
 

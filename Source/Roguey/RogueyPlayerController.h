@@ -32,6 +32,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> CameraZoomAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> SecondaryModifierAction;
+
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float CameraZoomSpeed = 100.f;
 
@@ -55,8 +58,11 @@ private:
 	void OnCameraRotateCompleted(const FInputActionValue& Value);
 	void OnMouseDelta(const FInputActionValue& Value);
 	void OnCameraZoom(const FInputActionValue& Value);
+	void OnSecondaryModifierStarted(const FInputActionValue& Value);
+	void OnSecondaryModifierCompleted(const FInputActionValue& Value);
 
 	bool bRotatingCamera = false;
+	bool bSecondaryModifierHeld = false;
 
 	UPROPERTY()
 	TObjectPtr<ARogueyTerrain> CachedTerrain;
