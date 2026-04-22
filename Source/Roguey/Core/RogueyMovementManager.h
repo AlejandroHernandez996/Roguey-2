@@ -1,0 +1,36 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "RogueyTickable.h"
+#include "Roguey/Grid/RogueyPathfinder.h"
+#include "UObject/Object.h"
+#include "RogueyMovementManager.generated.h"
+
+class ARogueyPawn;
+class URogueyGridManager;
+
+UCLASS()
+class ROGUEY_API URogueyMovementManager : public UObject, public IRogueyTickable
+{
+	GENERATED_BODY()
+
+public:
+	void Init(URogueyGridManager* InGridManager);
+
+	virtual void RogueyTick(int32 TickIndex) override;
+
+	// Queue a path for a pawn — replaces any existing pending path
+	void RequestMove(ARogueyPawn* Pawn, FRogueyPath Path);
+
+	// Cancel movement and return the pawn to Idle
+	void CancelMove(ARogueyPawn* Pawn);
+
+	bool HasPendingMove(const ARogueyPawn* Pawn) const;
+
+private:
+	UPROPERTY()
+	TObjectPtr<URogueyGridManager> GridManager;
+
+	// Not a UPROPERTY — FRogueyPath is a plain struct. Pawns are validated via IsValid() each tick.
+	TMap<ARogueyPawn*, FRogueyPath> PendingPaths;
+};
