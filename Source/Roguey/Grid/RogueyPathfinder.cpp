@@ -19,8 +19,8 @@ namespace
 
 int32 RogueyPathfinder::Heuristic(FIntVector2 A, FIntVector2 B)
 {
-	// Chebyshev distance — correct for 8-directional equal-cost movement
-	return FMath::Max(FMath::Abs(A.X - B.X), FMath::Abs(A.Y - B.Y));
+	// Chebyshev * 10 — scaled to match cardinal(10)/diagonal(11) step costs
+	return FMath::Max(FMath::Abs(A.X - B.X), FMath::Abs(A.Y - B.Y)) * 10;
 }
 
 FRogueyPath RogueyPathfinder::FindPath(const FRogueyGrid& Grid, FIntVector2 Start, FIntVector2 Goal)
@@ -66,7 +66,7 @@ FRogueyPath RogueyPathfinder::RunAStar(
 	TMap<FIntPoint, int32> GCost;
 
 	Open.HeapPush({ Start, 0, Heuristic(Start, HeuristicTarget) });
-	GCost.Add(ToKey(Start), 0);
+	GCost.Add(ToKey(Start), 0); // start G=0, heuristic already scaled
 
 	while (!Open.IsEmpty())
 	{
@@ -103,7 +103,9 @@ FRogueyPath RogueyPathfinder::RunAStar(
 
 			if (!Grid.CanMove(Current.Coord, Neighbor)) continue;
 
-			int32 NewG = CurrentG + 1;
+			// Cardinals cost 10, diagonals cost 11 — same step count but cardinals preferred on ties
+			bool bDiagonal = (Dir.X != 0 && Dir.Y != 0);
+			int32 NewG = CurrentG + (bDiagonal ? 11 : 10);
 			FIntPoint NeighborKey = ToKey(Neighbor);
 
 			if (const int32* ExistingG = GCost.Find(NeighborKey))

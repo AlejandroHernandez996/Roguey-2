@@ -39,8 +39,9 @@ based on loot they find.
   Combat/     — Combat component, hit splats
   Skills/     — Skill component, XP
   Items/      — Data assets, inventory, equipment
-  Monsters/   — Data assets, AI
-  Dungeon/    — Rooms, floor manager
+  Npcs/       — Data assets, AI (monsters, bosses)
+  Grid/       — Grid data, tile types, grid manager
+  Dungeon/    — Rooms, floor manager, procedural generation
   UI/         — Widgets
 
 ## Current Focus

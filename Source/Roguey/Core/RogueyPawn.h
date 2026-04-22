@@ -42,6 +42,10 @@ public:
 	// Called server-side to commit the pawn to a new tile
 	void CommitMove(FIntVector2 NewTile);
 
+	// Client calls this; server validates, pathfinds, and queues the move
+	UFUNCTION(Server, Reliable)
+	void Server_RequestMoveTo(FIntPoint TargetTile);
+
 	// State — replicated for animation
 	UPROPERTY(ReplicatedUsing = OnRep_PawnState, BlueprintReadOnly)
 	EPawnState PawnState = EPawnState::Idle;
@@ -62,6 +66,11 @@ public:
 	int32 TeamId = 0;
 
 	FIntVector2 GetTileCoord() const { return FIntVector2(TilePosition.X, TilePosition.Y); }
+	FIntVector2 GetDestinationTileCoord() const { return FIntVector2(DestinationTile.X, DestinationTile.Y); }
+	bool HasDestination() const { return DestinationTile != FIntPoint(-1, -1); }
+
+	UPROPERTY(Replicated)
+	FIntPoint DestinationTile = FIntPoint(-1, -1);
 
 	bool IsDead() const { return PawnState == EPawnState::Dead; }
 

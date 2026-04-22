@@ -5,16 +5,19 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Roguey/RogueyGameMode.h"
 #include "Roguey/Grid/RogueyGridManager.h"
+#include "Roguey/Grid/RogueyPathfinder.h"
 
 ARogueyPawn::ARogueyPawn()
 {
-	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
+	GetCapsuleComponent()->InitCapsuleSize(45.f, 100.f);
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->SetMovementMode(MOVE_None);
+	GetCharacterMovement()->DisableMovement();
+	GetCharacterMovement()->SetComponentTickEnabled(false);
+	GetCharacterMovement()->GravityScale = 0.f;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 
 	PrimaryActorTick.bCanEverTick = true;
@@ -115,6 +118,25 @@ void ARogueyPawn::EnqueueVisualPosition(FIntVector2 Tile)
 	TrueTileQueue.Enqueue(WorldPos);
 }
 
+void ARogueyPawn::Server_RequestMoveTo_Implementation(FIntPoint InTargetTile)
+{
+	ARogueyGameMode* GameMode = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode());
+	if (!GameMode || !GameMode->GridManager || !GameMode->MovementManager) return;
+
+	URogueyGridManager* Grid = GameMode->GridManager;
+	FIntVector2 Target(InTargetTile.X, InTargetTile.Y);
+
+	if (!Grid->IsInBounds(Target)) return;
+
+	FIntVector2 Start = GetTileCoord();
+	if (Start == Target) return;
+
+	FRogueyPath Path = RogueyPathfinder::FindPath(Grid->GetGrid(), Start, Target);
+	if (!Path.IsValid()) return;
+
+	GameMode->MovementManager->RequestMove(this, Path);
+}
+
 void ARogueyPawn::SetPawnState(EPawnState NewState)
 {
 	if (PawnState == NewState) return;
@@ -140,4 +162,5 @@ void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ARogueyPawn, PawnState);
 	DOREPLIFETIME(ARogueyPawn, CurrentHP);
 	DOREPLIFETIME(ARogueyPawn, MaxHP);
+	DOREPLIFETIME(ARogueyPawn, DestinationTile);
 }

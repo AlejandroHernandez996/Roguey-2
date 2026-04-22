@@ -26,6 +26,7 @@ void URogueyMovementManager::RogueyTick(int32 TickIndex)
 		if (!Path.IsValid())
 		{
 			Finished.Add(Pawn);
+			Pawn->DestinationTile = FIntPoint(-1, -1);
 			Pawn->SetPawnState(EPawnState::Idle);
 			continue;
 		}
@@ -49,6 +50,7 @@ void URogueyMovementManager::RogueyTick(int32 TickIndex)
 		if (!Path.IsValid())
 		{
 			Finished.Add(Pawn);
+			Pawn->DestinationTile = FIntPoint(-1, -1);
 			Pawn->SetPawnState(EPawnState::Idle);
 		}
 	}
@@ -62,6 +64,8 @@ void URogueyMovementManager::RogueyTick(int32 TickIndex)
 void URogueyMovementManager::RequestMove(ARogueyPawn* Pawn, FRogueyPath Path)
 {
 	if (!IsValid(Pawn) || !Path.IsValid()) return;
+	FIntVector2 Goal = Path.Tiles.Last();
+	Pawn->DestinationTile = FIntPoint(Goal.X, Goal.Y);
 	PendingPaths.FindOrAdd(Pawn) = MoveTemp(Path);
 	Pawn->SetPawnState(EPawnState::Moving);
 }
@@ -71,10 +75,21 @@ void URogueyMovementManager::CancelMove(ARogueyPawn* Pawn)
 	if (!IsValid(Pawn)) return;
 	PendingPaths.Remove(Pawn);
 	if (!Pawn->IsDead())
+	{
+		Pawn->DestinationTile = FIntPoint(-1, -1);
 		Pawn->SetPawnState(EPawnState::Idle);
+	}
 }
 
 bool URogueyMovementManager::HasPendingMove(const ARogueyPawn* Pawn) const
 {
 	return PendingPaths.Contains(const_cast<ARogueyPawn*>(Pawn));
+}
+
+FIntVector2 URogueyMovementManager::GetDestinationTile(const ARogueyPawn* Pawn) const
+{
+	if (const FRogueyPath* Path = PendingPaths.Find(const_cast<ARogueyPawn*>(Pawn)))
+		if (Path->IsValid())
+			return Path->Tiles.Last();
+	return FIntVector2(-1, -1);
 }

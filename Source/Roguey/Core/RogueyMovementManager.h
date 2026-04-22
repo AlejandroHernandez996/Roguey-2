@@ -27,6 +27,9 @@ public:
 
 	bool HasPendingMove(const ARogueyPawn* Pawn) const;
 
+	// Returns the final tile of the queued path, or (-1,-1) if none
+	FIntVector2 GetDestinationTile(const ARogueyPawn* Pawn) const;
+
 private:
 	UPROPERTY()
 	TObjectPtr<URogueyGridManager> GridManager;

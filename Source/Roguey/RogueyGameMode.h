@@ -6,6 +6,7 @@
 #include "Core/RogueyMovementManager.h"
 #include "Grid/RogueyGridManager.h"
 #include "Terrain/RogueyTerrain.h"
+#include "RogueyCharacter.h"
 #include "RogueyPlayerController.h"
 #include "GameFramework/GameModeBase.h"
 #include "RogueyGameMode.generated.h"
@@ -37,20 +38,22 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 GridHeight = 64;
 
-	UPROPERTY(EditAnywhere, Category = "Terrain")
-	TObjectPtr<UMaterialInterface> TerrainMaterial;
+	UPROPERTY(EditAnywhere, Category = "Grid")
+	TArray<FIntPoint> PlayerStartTiles;
 
 	UPROPERTY(EditAnywhere, Category = "Terrain")
-	float TerrainMaxHeight = 50.f;
-
-	UPROPERTY(EditAnywhere, Category = "Terrain")
-	float TerrainNoiseScale = 0.15f;
+	TSubclassOf<ARogueyTerrain> TerrainClass;
 
 protected:
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void BeginPlay() override;
+	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
 private:
 	void OnGameTick();
+	void SpawnAndPossessCharacter(APlayerController* PC);
+
+	int32 PlayerSpawnCount = 0;
 
 	static constexpr float GameTickInterval = RogueyConstants::GameTickInterval;
 

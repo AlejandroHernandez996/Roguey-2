@@ -1,14 +1,27 @@
 #include "RogueyTerrain.h"
 
 #include "KismetProceduralMeshLibrary.h"
+#include "Net/UnrealNetwork.h"
+#include "Roguey/Core/RogueyConstants.h"
 #include "Roguey/Grid/RogueyGridManager.h"
 
 ARogueyTerrain::ARogueyTerrain()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+
 	ProcMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProcMesh"));
 	SetRootComponent(ProcMesh);
-	ProcMesh->bUseAsyncCooking = true;
+	ProcMesh->bUseAsyncCooking = false;
+	ProcMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ProcMesh->SetCollisionResponseToAllChannels(ECR_Block);
+}
+
+void ARogueyTerrain::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ARogueyTerrain, RepGridW);
+	DOREPLIFETIME(ARogueyTerrain, RepGridH);
 }
 
 void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
@@ -16,9 +29,7 @@ void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
 	if (!GridManager) return;
 
 	const FRogueyGrid& Grid = GridManager->GetGrid();
-	const float TileSize = URogueyGridManager::TileSize;
 
-	// Collect all tile coords to determine grid bounds
 	int32 MinX = INT_MAX, MinY = INT_MAX, MaxX = INT_MIN, MaxY = INT_MIN;
 	for (const auto& Pair : Grid.Tiles)
 	{
@@ -30,11 +41,38 @@ void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
 
 	if (MinX == INT_MAX) return;
 
-	// Vertex grid is (W+1) x (H+1) — corners, not tile centres
+	GridMinX = MinX;
+	GridMinY = MinY;
+
 	int32 W = MaxX - MinX + 1;
 	int32 H = MaxY - MinY + 1;
-	int32 VW = W + 1;
-	int32 VH = H + 1;
+
+	RepGridH = H;
+	RepGridW = W; // triggers OnRep on clients
+
+	BuildMesh(W, H);
+}
+
+void ARogueyTerrain::OnRep_Build()
+{
+	if (RepGridW <= 0) return;
+	GridMinX = 0;
+	GridMinY = 0;
+	BuildMesh(RepGridW, RepGridH);
+}
+
+void ARogueyTerrain::BuildMesh(int32 GridW, int32 GridH)
+{
+	const float TileSize = RogueyConstants::TileSize;
+
+	VW = GridW + 1;
+	int32 VH = GridH + 1;
+
+	HeightGrid.Reset();
+	HeightGrid.SetNum(VW * VH);
+	for (int32 vy = 0; vy < VH; vy++)
+		for (int32 vx = 0; vx < VW; vx++)
+			HeightGrid[vy * VW + vx] = (FMath::PerlinNoise2D(FVector2D(vx * NoiseScale, vy * NoiseScale)) * 0.5f + 0.5f) * MaxHeight;
 
 	TArray<FVector>          Vertices;
 	TArray<int32>            Triangles;
@@ -43,23 +81,14 @@ void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
 	TArray<FProcMeshTangent> Tangents;
 	TArray<FColor>           VertexColors;
 
-	// Shared height grid — (VW x VH) corner heights so adjacent tiles agree on edge Z
-	TArray<float> HeightGrid;
-	HeightGrid.SetNum(VW * VH);
-	for (int32 vy = 0; vy < VH; vy++)
-		for (int32 vx = 0; vx < VW; vx++)
-			HeightGrid[vy * VW + vx] = (FMath::PerlinNoise2D(FVector2D(vx * NoiseScale, vy * NoiseScale)) * 0.5f + 0.5f) * MaxHeight;
+	Vertices.Reserve(GridW * GridH * 4);
+	UVs.Reserve(GridW * GridH * 4);
+	VertexColors.Reserve(GridW * GridH * 4);
+	Triangles.Reserve(GridW * GridH * 6);
 
-	// 4 unique vertices per tile so each tile gets a flat colour, but corner Z values
-	// come from the shared grid so neighbouring tiles connect seamlessly
-	Vertices.Reserve(W * H * 4);
-	UVs.Reserve(W * H * 4);
-	VertexColors.Reserve(W * H * 4);
-	Triangles.Reserve(W * H * 6);
-
-	for (int32 ty = 0; ty < H; ty++)
+	for (int32 ty = 0; ty < GridH; ty++)
 	{
-		for (int32 tx = 0; tx < W; tx++)
+		for (int32 tx = 0; tx < GridW; tx++)
 		{
 			float Z00 = HeightGrid[ty       * VW + tx];
 			float Z10 = HeightGrid[ty       * VW + tx + 1];
@@ -70,10 +99,10 @@ void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
 			uint8 V8   = (uint8)(AvgZ / MaxHeight * 255);
 			FColor TileColor(V8, V8, V8, 255);
 
-			float X0 = (MinX + tx)     * TileSize;
-			float X1 = (MinX + tx + 1) * TileSize;
-			float Y0 = (MinY + ty)     * TileSize;
-			float Y1 = (MinY + ty + 1) * TileSize;
+			float X0 = (GridMinX + tx)     * TileSize;
+			float X1 = (GridMinX + tx + 1) * TileSize;
+			float Y0 = (GridMinY + ty)     * TileSize;
+			float Y1 = (GridMinY + ty + 1) * TileSize;
 
 			int32 Base = Vertices.Num();
 
@@ -102,4 +131,32 @@ void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
 
 	if (Material)
 		ProcMesh->SetMaterial(0, Material);
+}
+
+bool ARogueyTerrain::GetTileCorners(FIntVector2 Tile, FVector& OutBL, FVector& OutBR, FVector& OutTL, FVector& OutTR) const
+{
+	if (HeightGrid.IsEmpty() || VW == 0) return false;
+
+	int32 tx = Tile.X - GridMinX;
+	int32 ty = Tile.Y - GridMinY;
+
+	if (tx < 0 || ty < 0) return false;
+
+	const float TileSize = RogueyConstants::TileSize;
+	float X0 = Tile.X       * TileSize;
+	float X1 = (Tile.X + 1) * TileSize;
+	float Y0 = Tile.Y       * TileSize;
+	float Y1 = (Tile.Y + 1) * TileSize;
+
+	float Z00 = HeightGrid[ty       * VW + tx];
+	float Z10 = HeightGrid[ty       * VW + tx + 1];
+	float Z01 = HeightGrid[(ty + 1) * VW + tx];
+	float Z11 = HeightGrid[(ty + 1) * VW + tx + 1];
+
+	OutBL = FVector(X0, Y0, Z00);
+	OutBR = FVector(X1, Y0, Z10);
+	OutTL = FVector(X0, Y1, Z01);
+	OutTR = FVector(X1, Y1, Z11);
+
+	return true;
 }
