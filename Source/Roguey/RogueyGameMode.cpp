@@ -18,25 +18,25 @@ void ARogueyGameMode::InitGame(const FString& MapName, const FString& Options, F
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
 
-	GridManager = NewObject<URogueyGridManager>(this);
-	GridManager->Init(GridWidth, GridHeight);
-	RegisterTickable(GridManager);
-
+	// Construct all managers first, then init (some inits cross-reference each other)
+	GridManager     = NewObject<URogueyGridManager>(this);
+	CombatManager   = NewObject<URogueyCombatManager>(this);
 	MovementManager = NewObject<URogueyMovementManager>(this);
+	ActionManager   = NewObject<URogueyActionManager>(this);
+	NpcManager      = NewObject<URogueyNpcManager>(this);
+	DeathManager    = NewObject<URogueyDeathManager>(this);
+
+	GridManager->Init(GridWidth, GridHeight);
 	MovementManager->Init(GridManager);
-	RegisterTickable(MovementManager);
-
-	// CombatManager is a pure damage calculator — not tickable
-	CombatManager = NewObject<URogueyCombatManager>(this);
-
-	// ActionManager ticks after MovementManager so it sees updated positions
-	ActionManager = NewObject<URogueyActionManager>(this);
 	ActionManager->Init(GridManager, MovementManager, CombatManager);
-	RegisterTickable(ActionManager);
-
-	// DeathManager ticks last — after ActionManager has cleared actions on dead pawns
-	DeathManager = NewObject<URogueyDeathManager>(this);
+	NpcManager->Init(GridManager, MovementManager, ActionManager);
 	DeathManager->Init(GridManager, ActionManager);
+
+	// Tick order: Grid → Action (stall checks cancel queued moves) → Movement (executes moves) → Npc → Death
+	RegisterTickable(GridManager);
+	RegisterTickable(ActionManager);
+	RegisterTickable(MovementManager);
+	RegisterTickable(NpcManager);
 	RegisterTickable(DeathManager);
 }
 

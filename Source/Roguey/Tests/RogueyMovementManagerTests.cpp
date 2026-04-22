@@ -87,8 +87,7 @@ bool FMovement_RequestAndCancel::RunTest(const FString& Parameters)
 	ARogueyPawn* Pawn = Env.SpawnPawn(World, FIntVector2(0, 0));
 	if (!Pawn) { AddError("Failed to spawn pawn"); return false; }
 
-	FRogueyGrid Grid = Env.Grid->GetGrid();
-	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 0), FIntVector2(3, 0));
+	FRogueyPath Path = RogueyPathfinder::FindPath(Env.Grid, FIntVector2(0, 0), FIntVector2(3, 0));
 
 	Env.Manager->RequestMove(Pawn, Path);
 	TestTrue("HasPendingMove after request", Env.Manager->HasPendingMove(Pawn));
@@ -113,8 +112,7 @@ bool FMovement_SingleTick_AdvancesOneTile::RunTest(const FString& Parameters)
 	ARogueyPawn* Pawn = Env.SpawnPawn(World, Start);
 	if (!Pawn) { AddError("Failed to spawn pawn"); return false; }
 
-	FRogueyGrid Grid = Env.Grid->GetGrid();
-	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, Start, FIntVector2(5, 2));
+	FRogueyPath Path = RogueyPathfinder::FindPath(Env.Grid, Start, FIntVector2(5, 2));
 
 	Env.Manager->RequestMove(Pawn, Path);
 	Env.Manager->RogueyTick(1);
@@ -141,8 +139,7 @@ bool FMovement_FullPath_ReachesGoalAndIdles::RunTest(const FString& Parameters)
 	ARogueyPawn* Pawn = Env.SpawnPawn(World, Start);
 	if (!Pawn) { AddError("Failed to spawn pawn"); return false; }
 
-	FRogueyGrid Grid = Env.Grid->GetGrid();
-	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, Start, Goal);
+	FRogueyPath Path = RogueyPathfinder::FindPath(Env.Grid, Start, Goal);
 	int32 Steps = Path.Tiles.Num(); // should be 3
 
 	Env.Manager->RequestMove(Pawn, Path);
@@ -172,8 +169,7 @@ bool FMovement_BlockedTile_StopsMovement::RunTest(const FString& Parameters)
 	if (!Pawn) { AddError("Failed to spawn pawn"); return false; }
 
 	// Compute path on open grid, then block the first step
-	FRogueyGrid OpenGrid = Env.Grid->GetGrid();
-	FRogueyPath Path = RogueyPathfinder::FindPath(OpenGrid, Start, FIntVector2(4, 0));
+	FRogueyPath Path = RogueyPathfinder::FindPath(Env.Grid, Start, FIntVector2(4, 0));
 
 	// Block the first step tile before the tick fires
 	Env.Grid->SetTileType(FIntVector2(1, 0), ETileType::Blocked);
@@ -201,17 +197,15 @@ bool FMovement_RequestMove_ReplacesExistingPath::RunTest(const FString& Paramete
 	ARogueyPawn* Pawn = Env.SpawnPawn(World, Start);
 	if (!Pawn) { AddError("Failed to spawn pawn"); return false; }
 
-	FRogueyGrid Grid = Env.Grid->GetGrid();
-
 	// Start moving north
-	FRogueyPath PathNorth = RogueyPathfinder::FindPath(Grid, Start, FIntVector2(5, 0));
+	FRogueyPath PathNorth = RogueyPathfinder::FindPath(Env.Grid, Start, FIntVector2(5, 0));
 	Env.Manager->RequestMove(Pawn, PathNorth);
 	Env.Manager->RogueyTick(1); // one step north
 
 	// Redirect east before the path finishes
 	FIntVector2 MidPoint = Pawn->GetTileCoord();
 	FIntVector2 EastGoal(9, MidPoint.Y);
-	FRogueyPath PathEast = RogueyPathfinder::FindPath(Grid, MidPoint, EastGoal);
+	FRogueyPath PathEast = RogueyPathfinder::FindPath(Env.Grid, MidPoint, EastGoal);
 	int32 EastSteps = PathEast.Tiles.Num(); // capture before the path is consumed
 	Env.Manager->RequestMove(Pawn, PathEast);
 
@@ -223,6 +217,95 @@ bool FMovement_RequestMove_ReplacesExistingPath::RunTest(const FString& Paramete
 	TestFalse("No pending move after completing east path", Env.Manager->HasPendingMove(Pawn));
 
 	Pawn->Destroy();
+	return true;
+}
+
+// Running (bRunning=true) advances 2 tiles in one tick on an open path
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovement_Running_TwoTilesPerTick, "Roguey.Movement.Running.TwoTilesPerTick", MOVEMENT_TEST_FLAGS)
+bool FMovement_Running_TwoTilesPerTick::RunTest(const FString& Parameters)
+{
+	UWorld* World = GetEditorWorld();
+	if (!World) { AddError("No editor world"); return false; }
+
+	FMovTestEnv Env;
+	ARogueyPawn* Pawn = Env.SpawnPawn(World, FIntVector2(0, 0));
+	if (!Pawn) { AddError("Spawn failed"); return false; }
+
+	FRogueyPath Path = RogueyPathfinder::FindPath(Env.Grid, FIntVector2(0, 0), FIntVector2(5, 0));
+	Env.Manager->RequestMove(Pawn, Path, true);
+	Env.Manager->RogueyTick(1);
+
+	TestEqual("Running advances 2 tiles in one tick", Pawn->GetTileCoord(), FIntVector2(2, 0));
+	TestEqual("GridManager reflects 2-tile advance",  Env.Grid->GetActorTile(Pawn), FIntVector2(2, 0));
+
+	Pawn->Destroy();
+	return true;
+}
+
+// When the second step is blocked, a running pawn falls back to a 1-tile walk
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovement_Running_SecondStepBlocked_FallsBackToOne, "Roguey.Movement.Running.SecondStepBlockedFallsBackToOne", MOVEMENT_TEST_FLAGS)
+bool FMovement_Running_SecondStepBlocked_FallsBackToOne::RunTest(const FString& Parameters)
+{
+	UWorld* World = GetEditorWorld();
+	if (!World) { AddError("No editor world"); return false; }
+
+	FMovTestEnv Env;
+	ARogueyPawn* Pawn = Env.SpawnPawn(World, FIntVector2(0, 0));
+	if (!Pawn) { AddError("Spawn failed"); return false; }
+
+	FRogueyPath Path = RogueyPathfinder::FindPath(Env.Grid, FIntVector2(0, 0), FIntVector2(5, 0));
+	// Block the second step after the path is computed
+	Env.Grid->SetTileType(FIntVector2(2, 0), ETileType::Blocked);
+
+	Env.Manager->RequestMove(Pawn, Path, true);
+	Env.Manager->RogueyTick(1);
+
+	TestEqual("Falls back to 1 tile when second step blocked", Pawn->GetTileCoord(), FIntVector2(1, 0));
+	TestEqual("GridManager reflects single-tile advance",      Env.Grid->GetActorTile(Pawn), FIntVector2(1, 0));
+
+	Pawn->Destroy();
+	return true;
+}
+
+// Player moves first; NPC that wants the same tile yields for that tick
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovement_PlayerFirst_NpcYieldsToPlayer, "Roguey.Movement.PlayerFirst.NpcYieldsToPlayer", MOVEMENT_TEST_FLAGS)
+bool FMovement_PlayerFirst_NpcYieldsToPlayer::RunTest(const FString& Parameters)
+{
+	UWorld* World = GetEditorWorld();
+	if (!World) { AddError("No editor world"); return false; }
+
+	FMovTestEnv Env;
+	// Player at (3,3), NPC at (5,3) — both want to move to (4,3) in the same tick
+	ARogueyPawn* PlayerPawn = Env.SpawnPawn(World, FIntVector2(3, 3));
+	ARogueyPawn* NpcPawn    = Env.SpawnPawn(World, FIntVector2(5, 3));
+	if (!PlayerPawn || !NpcPawn) { AddError("Spawn failed"); return false; }
+
+	// Possess the player pawn so IsPlayerControlled() returns true.
+	// In EWorldType::Editor Possess() may silently fail (HasAuthority() is false).
+	// Skip gracefully rather than give a false negative.
+	APlayerController* PC = World->SpawnActor<APlayerController>();
+	if (!PC) { AddError("PlayerController spawn failed"); return false; }
+	PC->Possess(PlayerPawn);
+	if (!PlayerPawn->IsPlayerControlled())
+	{
+		AddWarning("Possession failed in editor world — NpcYieldsToPlayer skipped");
+		PC->Destroy(); PlayerPawn->Destroy(); NpcPawn->Destroy();
+		return true;
+	}
+
+	FRogueyPath PlayerPath = RogueyPathfinder::FindPath(Env.Grid, FIntVector2(3, 3), FIntVector2(4, 3));
+	FRogueyPath NpcPath    = RogueyPathfinder::FindPath(Env.Grid, FIntVector2(5, 3), FIntVector2(4, 3));
+
+	Env.Manager->RequestMove(PlayerPawn, PlayerPath, false);
+	Env.Manager->RequestMove(NpcPawn,    NpcPath,    false);
+	Env.Manager->RogueyTick(1);
+
+	TestEqual("Player claimed the contested tile",           PlayerPawn->GetTileCoord(), FIntVector2(4, 3));
+	TestEqual("NPC yielded — did not move onto player tile", NpcPawn->GetTileCoord(),    FIntVector2(5, 3));
+
+	PC->Destroy();
+	PlayerPawn->Destroy();
+	NpcPawn->Destroy();
 	return true;
 }
 

@@ -48,7 +48,7 @@ public:
 	float LastHitTime = -1.f;
 
 	// Called server-side when this pawn takes a hit; updates replicated UI state.
-	void ReceiveHit(int32 Damage);
+	virtual void ReceiveHit(int32 Damage, ARogueyPawn* Attacker = nullptr);
 
 	// Current tile position — server authoritative, triggers visual interpolation on rep
 	UPROPERTY(ReplicatedUsing = OnRep_TilePosition)
@@ -92,6 +92,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	int32 TeamId = 0;
 
+	// If true, other actors treat this tile as impassable when pathfinding
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool bBlocksMovement = false;
+
+	// Footprint size in tiles (width × height). Origin = TilePosition (top-left corner).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	FIntPoint TileExtent = FIntPoint(1, 1);
+
 	FIntVector2 GetTileCoord() const { return FIntVector2(TilePosition.X, TilePosition.Y); }
 	FIntVector2 GetDestinationTileCoord() const { return FIntVector2(DestinationTile.X, DestinationTile.Y); }
 	bool HasDestination() const { return DestinationTile != FIntPoint(-1, -1); }
@@ -105,6 +113,18 @@ public:
 	FIntPoint RunStepTile = FIntPoint(-1, -1);
 
 	bool IsDead() const { return PawnState == EPawnState::Dead; }
+
+	// Speech bubble — set server-side, replicated to all clients for display
+	UPROPERTY(ReplicatedUsing = OnRep_SpeechBubble)
+	FString SpeechBubbleText;
+
+	UPROPERTY(ReplicatedUsing = OnRep_SpeechBubble)
+	uint8 SpeechBubbleCounter = 0; // increments each say so OnRep fires even for duplicate text
+
+	UFUNCTION()
+	void OnRep_SpeechBubble();
+
+	void ShowSpeechBubble(const FString& Text);
 
 protected:
 	virtual void BeginPlay() override;

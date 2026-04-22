@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Core/RogueyInteractable.h"
+#include "Core/RogueyConstants.h"
 #include "Grid/RogueyGridManager.h"
 #include "Terrain/RogueyTerrain.h"
 #include "UI/RogueyHUD.h"
@@ -48,6 +49,7 @@ void ARogueyPlayerController::SetupInputComponent()
 		{
 			EIC->BindAction(ClickAction, ETriggerEvent::Started,   this, &ARogueyPlayerController::OnClickTriggered);
 			EIC->BindAction(ClickAction, ETriggerEvent::Triggered, this, &ARogueyPlayerController::OnClickTriggered);
+			EIC->BindAction(ClickAction, ETriggerEvent::Completed, this, &ARogueyPlayerController::OnClickCompleted);
 		}
 
 		if (CameraRotateAction)
@@ -73,6 +75,21 @@ void ARogueyPlayerController::SetupInputComponent()
 void ARogueyPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+
+	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
+
+	// Right-click — open (or close) context menu
+	if (WasInputKeyJustPressed(EKeys::RightMouseButton) && !bRotatingCamera)
+	{
+		if (HUD && HUD->IsContextMenuOpen())
+			HUD->CloseContextMenu();
+		else
+			HandleRightClick();
+	}
+
+	// Escape — close menu
+	if (WasInputKeyJustPressed(EKeys::Escape) && HUD)
+		HUD->CloseContextMenu();
 
 	if (!CachedTerrain)
 	{
@@ -117,7 +134,7 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 	FCollisionQueryParams Params;
 	if (RogueyPawn) Params.AddIgnoredActor(RogueyPawn);
 
-	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
+	if (HUD)
 	{
 		if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
 		{
@@ -150,8 +167,41 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 
 	if (RogueyPawn)
 	{
-		// Current tile — yellow
-		DrawTile(RogueyPawn->GetTileCoord(), FColor(255, 220, 0));
+		FIntVector2 Orig = RogueyPawn->GetTileCoord();
+		FIntPoint   Ext  = RogueyPawn->TileExtent;
+		const FColor Yellow(255, 220, 0);
+
+		if (Ext == FIntPoint(1, 1))
+		{
+			DrawTile(Orig, Yellow);
+		}
+		else
+		{
+			// Single outer border spanning the full footprint
+			FVector A = FVector::ZeroVector, B = FVector::ZeroVector,
+			        C = FVector::ZeroVector, D = FVector::ZeroVector,
+			        tmp1, tmp2, tmp3;
+			bool bOk = CachedTerrain != nullptr;
+			if (bOk) bOk = CachedTerrain->GetTileCorners(FIntVector2(Orig.X, Orig.Y),                           A,    tmp1, tmp2, tmp3);
+			if (bOk) bOk = CachedTerrain->GetTileCorners(FIntVector2(Orig.X + Ext.X - 1, Orig.Y),              tmp1, B,    tmp2, tmp3);
+			if (bOk) bOk = CachedTerrain->GetTileCorners(FIntVector2(Orig.X + Ext.X - 1, Orig.Y + Ext.Y - 1), tmp1, tmp2, tmp3, C   );
+			if (bOk) bOk = CachedTerrain->GetTileCorners(FIntVector2(Orig.X, Orig.Y + Ext.Y - 1),             tmp1, tmp2, D,    tmp3);
+			if (bOk)
+			{
+				A.Z += LineZ; B.Z += LineZ; C.Z += LineZ; D.Z += LineZ;
+			}
+			else
+			{
+				A = FVector( Orig.X            * TileSize,  Orig.Y            * TileSize, 80.f);
+				B = FVector((Orig.X + Ext.X)   * TileSize,  Orig.Y            * TileSize, 80.f);
+				C = FVector((Orig.X + Ext.X)   * TileSize, (Orig.Y + Ext.Y)  * TileSize, 80.f);
+				D = FVector( Orig.X            * TileSize, (Orig.Y + Ext.Y)  * TileSize, 80.f);
+			}
+			DrawDebugLine(GetWorld(), A, B, Yellow, false, -1.f, 0, 3.f);
+			DrawDebugLine(GetWorld(), B, C, Yellow, false, -1.f, 0, 3.f);
+			DrawDebugLine(GetWorld(), C, D, Yellow, false, -1.f, 0, 3.f);
+			DrawDebugLine(GetWorld(), D, A, Yellow, false, -1.f, 0, 3.f);
+		}
 
 		// Destination tile — gray
 		if (RogueyPawn->HasDestination())
@@ -215,8 +265,31 @@ void ARogueyPlayerController::OnSecondaryModifierCompleted(const FInputActionVal
 	bSecondaryModifierHeld = false;
 }
 
+void ARogueyPlayerController::OnClickCompleted(const FInputActionValue& Value)
+{
+	bMenuWasOpenOnPress = false;
+}
+
 void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 {
+	// Enhanced Input fires before PlayerTick, so we gate here directly.
+	// If the menu was open when this press started, eat the whole press (Started + Triggered).
+	ARogueyHUD* ClickHUD = Cast<ARogueyHUD>(GetHUD());
+	if (ClickHUD && ClickHUD->IsContextMenuOpen())
+	{
+		bMenuWasOpenOnPress = true;
+		float MX, MY;
+		GetMousePosition(MX, MY);
+		int32 Idx = ClickHUD->HitTestContextMenu(MX, MY);
+		FContextMenuEntry Entry;
+		bool bHit = ClickHUD->GetContextEntryCopy(Idx, Entry);
+		ClickHUD->CloseContextMenu();
+		if (bHit && !Entry.bIsCancel)
+			ExecuteContextEntry(Entry);
+		return;
+	}
+	if (bMenuWasOpenOnPress) return; // held after dismissing menu — don't fire movement
+
 	if (bRotatingCamera) return;
 
 	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
@@ -246,4 +319,90 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 	);
 
 	RogueyPawn->Server_RequestMoveTo(TargetTile, !bSecondaryModifierHeld);
+}
+
+// ── Context menu ──────────────────────────────────────────────────────────────
+
+static FLinearColor ActionColor(FName ActionId)
+{
+	if (ActionId == "Attack")  return FLinearColor(0.85f, 0.15f, 0.15f);
+	if (ActionId == "Examine") return FLinearColor(0.6f,  0.9f,  0.6f);
+	return FLinearColor::White;
+}
+
+void ARogueyPlayerController::HandleRightClick()
+{
+	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
+	if (!RogueyPawn) return;
+
+	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
+	if (!HUD) return;
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(RogueyPawn);
+	if (!GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit)) return;
+
+	float MouseX, MouseY;
+	GetMousePosition(MouseX, MouseY);
+
+	TArray<FContextMenuEntry> Entries;
+
+	// Interactable actions
+	AActor* HitActor = Hit.GetActor();
+	if (HitActor && HitActor != RogueyPawn && HitActor->Implements<URogueyInteractable>())
+	{
+		IRogueyInteractable* Interactable = Cast<IRogueyInteractable>(HitActor);
+		FString TargetName = Interactable->GetTargetName().ToString();
+
+		for (const FRogueyActionDef& Def : Interactable->GetActions())
+		{
+			FContextMenuEntry E;
+			E.ActionText  = Def.DisplayName.ToString();
+			E.TargetText  = TargetName;
+			E.ActionColor = ActionColor(Def.ActionId);
+			E.ActionId    = Def.ActionId;
+			E.TargetActor = HitActor;
+			Entries.Add(E);
+		}
+	}
+
+	// Walk here
+	{
+		FContextMenuEntry E;
+		E.ActionText = TEXT("Move here");
+		E.ActionColor = FLinearColor::White;
+		E.bIsWalk    = true;
+		E.TargetTile = FIntPoint(
+			FMath::FloorToInt(Hit.Location.X / RogueyConstants::TileSize),
+			FMath::FloorToInt(Hit.Location.Y / RogueyConstants::TileSize));
+		Entries.Add(E);
+	}
+
+	// Cancel
+	{
+		FContextMenuEntry E;
+		E.ActionText  = TEXT("Cancel");
+		E.ActionColor = FLinearColor(0.85f, 0.15f, 0.15f);
+		E.bIsCancel   = true;
+		Entries.Add(E);
+	}
+
+	HUD->OpenContextMenu(MouseX, MouseY, Entries);
+}
+
+void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry)
+{
+	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
+	if (!RogueyPawn) return;
+
+	if (Entry.bIsWalk)
+	{
+		RogueyPawn->Server_RequestMoveTo(Entry.TargetTile, !bSecondaryModifierHeld);
+		return;
+	}
+
+	AActor* Target = Entry.TargetActor.Get();
+	if (IsValid(Target) && !Entry.ActionId.IsNone())
+		RogueyPawn->Server_RequestActorAction(Target, Entry.ActionId);
 }

@@ -82,7 +82,7 @@ void ARogueyPawn::Tick(float DeltaSeconds)
 	if (Dist2D <= 1.f)
 	{
 		SetActorLocation(Target);
-		TrueTileQueue.RemoveAt(0, 1, false);
+		TrueTileQueue.RemoveAt(0, 1, EAllowShrinking::No);
 		return;
 	}
 
@@ -97,7 +97,7 @@ void ARogueyPawn::Tick(float DeltaSeconds)
 	if (StepSize >= Dist2D)
 	{
 		SetActorLocation(Target);
-		TrueTileQueue.RemoveAt(0, 1, false);
+		TrueTileQueue.RemoveAt(0, 1, EAllowShrinking::No);
 	}
 	else
 	{
@@ -137,11 +137,10 @@ void ARogueyPawn::EnqueueVisualPosition(FIntVector2 Tile)
 		}
 	}
 
-	const float Half = RogueyConstants::TileSize * 0.5f;
 	float SurfaceZ = CachedTerrain ? CachedTerrain->GetTileHeight(Tile) : 0.f;
 	FVector WorldPos = FVector(
-		Tile.X * RogueyConstants::TileSize + Half,
-		Tile.Y * RogueyConstants::TileSize + Half,
+		Tile.X * RogueyConstants::TileSize + RogueyConstants::TileSize * TileExtent.X * 0.5f,
+		Tile.Y * RogueyConstants::TileSize + RogueyConstants::TileSize * TileExtent.Y * 0.5f,
 		SurfaceZ + RogueyConstants::PawnHoverHeight
 	);
 	TrueTileQueue.Add(WorldPos);
@@ -178,12 +177,26 @@ void ARogueyPawn::OnRep_HP()
 {
 }
 
-void ARogueyPawn::ReceiveHit(int32 Damage)
+void ARogueyPawn::ReceiveHit(int32 Damage, ARogueyPawn* /*Attacker*/)
 {
 	LastHitDamage    = Damage;
 	HitSplatCounter++;
 	LastHitTime      = GetWorld()->GetTimeSeconds();
 	OnRep_HitSplat(); // fire locally on server/listen-server host
+}
+
+void ARogueyPawn::ShowSpeechBubble(const FString& Text)
+{
+	SpeechBubbleText = Text;
+	SpeechBubbleCounter++;
+	OnRep_SpeechBubble(); // fire locally on server / listen-server host
+}
+
+void ARogueyPawn::OnRep_SpeechBubble()
+{
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		if (ARogueyHUD* HUD = Cast<ARogueyHUD>(PC->GetHUD()))
+			HUD->AddSpeechBubble(this, SpeechBubbleText);
 }
 
 void ARogueyPawn::OnRep_HitSplat()
@@ -206,4 +219,6 @@ void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ARogueyPawn, LastHitDamage);
 	DOREPLIFETIME(ARogueyPawn, HitSplatCounter);
 	DOREPLIFETIME(ARogueyPawn, LastHitTime);
+	DOREPLIFETIME(ARogueyPawn, SpeechBubbleText);
+	DOREPLIFETIME(ARogueyPawn, SpeechBubbleCounter);
 }

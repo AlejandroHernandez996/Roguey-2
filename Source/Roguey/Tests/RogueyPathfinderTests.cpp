@@ -1,16 +1,16 @@
 #include "Misc/AutomationTest.h"
-#include "Roguey/Grid/RogueyGrid.h"
+#include "Roguey/Grid/RogueyGridManager.h"
 #include "Roguey/Grid/RogueyPathfinder.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #define PATHFINDER_TEST_FLAGS (EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-// Helper — builds a clean open grid
-static FRogueyGrid MakeGrid(int32 Width, int32 Height)
+// Helper — builds a clean open GridManager (no world needed)
+static URogueyGridManager* MakeGrid(int32 Width, int32 Height)
 {
-	FRogueyGrid Grid;
-	Grid.Init(Width, Height);
+	URogueyGridManager* Grid = NewObject<URogueyGridManager>(GetTransientPackage());
+	Grid->Init(Width, Height);
 	return Grid;
 }
 
@@ -24,7 +24,7 @@ static FRogueyGrid MakeGrid(int32 Width, int32 Height)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_BasicDiagonalPath, "Roguey.Pathfinder.BasicDiagonalPath", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_BasicDiagonalPath::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 0), FIntVector2(3, 3));
 
@@ -40,7 +40,7 @@ bool FPathfinder_BasicDiagonalPath::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_CardinalPath, "Roguey.Pathfinder.CardinalPath", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_CardinalPath::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 0), FIntVector2(4, 0));
 
@@ -55,7 +55,7 @@ bool FPathfinder_CardinalPath::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_StartEqualsGoal, "Roguey.Pathfinder.StartEqualsGoal", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_StartEqualsGoal::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(3, 3), FIntVector2(3, 3));
 
@@ -68,7 +68,7 @@ bool FPathfinder_StartEqualsGoal::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_GoalOutOfBounds, "Roguey.Pathfinder.GoalOutOfBounds", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_GoalOutOfBounds::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 0), FIntVector2(20, 20));
 
@@ -81,8 +81,8 @@ bool FPathfinder_GoalOutOfBounds::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_GoalBlocked, "Roguey.Pathfinder.GoalBlocked", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_GoalBlocked::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
-	Grid.SetTileType(FIntVector2(5, 5), ETileType::Blocked);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
+	Grid->SetTileType(FIntVector2(5, 5), ETileType::Blocked);
 
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 0), FIntVector2(5, 5));
 
@@ -105,10 +105,10 @@ bool FPathfinder_GoalBlocked::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_PathAroundWall, "Roguey.Pathfinder.PathAroundWall", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_PathAroundWall::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 5);
-	Grid.SetTileType(FIntVector2(2, 0), ETileType::Blocked);
-	Grid.SetTileType(FIntVector2(2, 1), ETileType::Blocked);
-	Grid.SetTileType(FIntVector2(2, 2), ETileType::Blocked);
+	URogueyGridManager* Grid = MakeGrid(10, 5);
+	Grid->SetTileType(FIntVector2(2, 0), ETileType::Blocked);
+	Grid->SetTileType(FIntVector2(2, 1), ETileType::Blocked);
+	Grid->SetTileType(FIntVector2(2, 2), ETileType::Blocked);
 	// Row 3 and 4 are open — path must go around through Y=3+
 
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 0), FIntVector2(4, 0));
@@ -130,14 +130,14 @@ bool FPathfinder_PathAroundWall::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_GoalSurrounded, "Roguey.Pathfinder.GoalSurrounded", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_GoalSurrounded::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 	// Surround (5,5) on all 8 sides
 	for (int32 DX = -1; DX <= 1; DX++)
 	{
 		for (int32 DY = -1; DY <= 1; DY++)
 		{
 			if (DX == 0 && DY == 0) continue;
-			Grid.SetTileType(FIntVector2(5 + DX, 5 + DY), ETileType::Blocked);
+			Grid->SetTileType(FIntVector2(5 + DX, 5 + DY), ETileType::Blocked);
 		}
 	}
 
@@ -163,9 +163,9 @@ bool FPathfinder_GoalSurrounded::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_NoCornerCutting, "Roguey.Pathfinder.NoCornerCutting", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_NoCornerCutting::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(5, 5);
-	Grid.SetTileType(FIntVector2(1, 2), ETileType::Blocked); // wall right of start
-	Grid.SetTileType(FIntVector2(0, 1), ETileType::Blocked); // wall below start
+	URogueyGridManager* Grid = MakeGrid(5, 5);
+	Grid->SetTileType(FIntVector2(1, 2), ETileType::Blocked); // wall right of start
+	Grid->SetTileType(FIntVector2(0, 1), ETileType::Blocked); // wall below start
 
 	FIntVector2 Start(0, 2);
 	FIntVector2 Goal(2, 0);
@@ -194,7 +194,7 @@ bool FPathfinder_NoCornerCutting::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_Optimality, "Roguey.Pathfinder.Optimality", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_Optimality::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(20, 20);
+	URogueyGridManager* Grid = MakeGrid(20, 20);
 
 	struct FCase { FIntVector2 Start, Goal; };
 	const FCase Cases[] = {
@@ -223,7 +223,7 @@ bool FPathfinder_Continuity::RunTest(const FString& Parameters)
 {
 	// Open grid path
 	{
-		FRogueyGrid Grid = MakeGrid(10, 10);
+		URogueyGridManager* Grid = MakeGrid(10, 10);
 		FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 0), FIntVector2(9, 9));
 
 		FIntVector2 Prev(0, 0);
@@ -237,8 +237,8 @@ bool FPathfinder_Continuity::RunTest(const FString& Parameters)
 
 	// Path around a wall — continuity must hold through the detour too
 	{
-		FRogueyGrid Grid = MakeGrid(10, 10);
-		for (int32 Y = 0; Y < 8; Y++) Grid.SetTileType(FIntVector2(5, Y), ETileType::Blocked);
+		URogueyGridManager* Grid = MakeGrid(10, 10);
+		for (int32 Y = 0; Y < 8; Y++) Grid->SetTileType(FIntVector2(5, Y), ETileType::Blocked);
 
 		FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 5), FIntVector2(9, 5));
 		TestTrue("Path around wall is valid", Path.IsValid());
@@ -265,10 +265,10 @@ bool FPathfinder_Continuity::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_NarrowCorridor, "Roguey.Pathfinder.NarrowCorridor", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_NarrowCorridor::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 5);
+	URogueyGridManager* Grid = MakeGrid(10, 5);
 	for (int32 Y = 0; Y < 5; Y++)
 	{
-		if (Y != 2) Grid.SetTileType(FIntVector2(3, Y), ETileType::Blocked);
+		if (Y != 2) Grid->SetTileType(FIntVector2(3, Y), ETileType::Blocked);
 	}
 
 	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(0, 2), FIntVector2(9, 2));
@@ -295,12 +295,12 @@ bool FPathfinder_NarrowCorridor::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrid_CanMoveCardinal, "Roguey.Grid.CanMoveCardinal", PATHFINDER_TEST_FLAGS)
 bool FGrid_CanMoveCardinal::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(5, 5);
+	URogueyGridManager* Grid = MakeGrid(5, 5);
 
-	TestTrue("Can move right",  Grid.CanMove(FIntVector2(1, 1), FIntVector2(2, 1)));
-	TestTrue("Can move left",   Grid.CanMove(FIntVector2(1, 1), FIntVector2(0, 1)));
-	TestTrue("Can move up",     Grid.CanMove(FIntVector2(1, 1), FIntVector2(1, 0)));
-	TestTrue("Can move down",   Grid.CanMove(FIntVector2(1, 1), FIntVector2(1, 2)));
+	TestTrue("Can move right",  Grid->CanMove(FIntVector2(1, 1), FIntVector2(2, 1)));
+	TestTrue("Can move left",   Grid->CanMove(FIntVector2(1, 1), FIntVector2(0, 1)));
+	TestTrue("Can move up",     Grid->CanMove(FIntVector2(1, 1), FIntVector2(1, 0)));
+	TestTrue("Can move down",   Grid->CanMove(FIntVector2(1, 1), FIntVector2(1, 2)));
 
 	return true;
 }
@@ -309,13 +309,13 @@ bool FGrid_CanMoveCardinal::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrid_CanMoveDiagonal, "Roguey.Grid.CanMoveDiagonal", PATHFINDER_TEST_FLAGS)
 bool FGrid_CanMoveDiagonal::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(5, 5);
+	URogueyGridManager* Grid = MakeGrid(5, 5);
 
-	TestTrue("Can move diagonally on open grid", Grid.CanMove(FIntVector2(1, 1), FIntVector2(2, 2)));
+	TestTrue("Can move diagonally on open grid", Grid->CanMove(FIntVector2(1, 1), FIntVector2(2, 2)));
 
 	// Block one of the orthogonal neighbours — diagonal should now be blocked
-	Grid.SetTileType(FIntVector2(2, 1), ETileType::Blocked);
-	TestFalse("Cannot cut corner when orthogonal tile is blocked", Grid.CanMove(FIntVector2(1, 1), FIntVector2(2, 2)));
+	Grid->SetTileType(FIntVector2(2, 1), ETileType::Blocked);
+	TestFalse("Cannot cut corner when orthogonal tile is blocked", Grid->CanMove(FIntVector2(1, 1), FIntVector2(2, 2)));
 
 	return true;
 }
@@ -328,7 +328,7 @@ bool FGrid_CanMoveDiagonal::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_ToAdjacent_AlreadyAdjacent, "Roguey.Pathfinder.ToAdjacent.AlreadyAdjacent", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_ToAdjacent_AlreadyAdjacent::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 
 	// Orthogonally adjacent
 	FRogueyPath Path = RogueyPathfinder::FindPathToAdjacent(Grid, FIntVector2(0, 0), FIntVector2(1, 0));
@@ -345,7 +345,7 @@ bool FPathfinder_ToAdjacent_AlreadyAdjacent::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_ToAdjacent_FindsPath, "Roguey.Pathfinder.ToAdjacent.FindsPath", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_ToAdjacent_FindsPath::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 	FIntVector2 Target(5, 5);
 
 	FRogueyPath Path = RogueyPathfinder::FindPathToAdjacent(Grid, FIntVector2(0, 0), Target);
@@ -369,17 +369,81 @@ bool FPathfinder_ToAdjacent_FindsPath::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_ToAdjacent_AllAdjacentBlocked, "Roguey.Pathfinder.ToAdjacent.AllAdjacentBlocked", PATHFINDER_TEST_FLAGS)
 bool FPathfinder_ToAdjacent_AllAdjacentBlocked::RunTest(const FString& Parameters)
 {
-	FRogueyGrid Grid = MakeGrid(10, 10);
+	URogueyGridManager* Grid = MakeGrid(10, 10);
 	FIntVector2 Target(5, 5);
 
 	for (int32 DX = -1; DX <= 1; DX++)
 		for (int32 DY = -1; DY <= 1; DY++)
 			if (DX != 0 || DY != 0)
-				Grid.SetTileType(FIntVector2(Target.X + DX, Target.Y + DY), ETileType::Blocked);
+				Grid->SetTileType(FIntVector2(Target.X + DX, Target.Y + DY), ETileType::Blocked);
 
 	FRogueyPath Path = RogueyPathfinder::FindPathToAdjacent(Grid, FIntVector2(0, 0), Target);
 
 	TestFalse("No path when all adjacent tiles are blocked", Path.IsValid());
+
+	return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Multi-tile footprint pathfinding
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 2x2 actor cannot squeeze through a 1-tile-wide gap; 1x1 can
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_MultiTile_2x2_BlockedByOneTileGap, "Roguey.Pathfinder.MultiTile.2x2BlockedByOneTileGap", PATHFINDER_TEST_FLAGS)
+bool FPathfinder_MultiTile_2x2_BlockedByOneTileGap::RunTest(const FString& Parameters)
+{
+	URogueyGridManager* Grid = MakeGrid(15, 10);
+
+	// Vertical wall at x=6, one-tile gap at y=5
+	for (int32 y = 0; y < 10; y++)
+		if (y != 5)
+			Grid->SetTileType(FIntVector2(6, y), ETileType::Blocked);
+
+	// 1x1 can slip through the single gap
+	FRogueyPath Path1x1 = RogueyPathfinder::FindPath(Grid, FIntVector2(3, 5), FIntVector2(10, 5));
+	TestTrue("1x1 finds path through 1-tile gap", Path1x1.IsValid());
+
+	// 2x2 footprint needs a 2-tile-wide opening — should fail
+	FRogueyPath Path2x2 = RogueyPathfinder::FindPath(Grid, FIntVector2(3, 4), FIntVector2(9, 4), FIntPoint(2, 2));
+	TestFalse("2x2 cannot fit through 1-tile gap", Path2x2.IsValid());
+
+	return true;
+}
+
+// 2x2 actor can pass when the gap is 2 tiles wide
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_MultiTile_2x2_FitsThroughTwoTileGap, "Roguey.Pathfinder.MultiTile.2x2FitsThroughTwoTileGap", PATHFINDER_TEST_FLAGS)
+bool FPathfinder_MultiTile_2x2_FitsThroughTwoTileGap::RunTest(const FString& Parameters)
+{
+	URogueyGridManager* Grid = MakeGrid(15, 10);
+
+	// Vertical wall at x=6, two-tile gap at y=4 and y=5
+	for (int32 y = 0; y < 10; y++)
+		if (y != 4 && y != 5)
+			Grid->SetTileType(FIntVector2(6, y), ETileType::Blocked);
+
+	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, FIntVector2(3, 4), FIntVector2(9, 4), FIntPoint(2, 2));
+	TestTrue("2x2 finds path through 2-tile gap", Path.IsValid());
+
+	return true;
+}
+
+// Every step in a 2x2 actor's path must be cardinal — no diagonal moves
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathfinder_MultiTile_2x2_NoDiagonalSteps, "Roguey.Pathfinder.MultiTile.2x2NoDiagonalSteps", PATHFINDER_TEST_FLAGS)
+bool FPathfinder_MultiTile_2x2_NoDiagonalSteps::RunTest(const FString& Parameters)
+{
+	URogueyGridManager* Grid = MakeGrid(10, 10);
+
+	FIntVector2 Start(0, 0);
+	FRogueyPath Path = RogueyPathfinder::FindPath(Grid, Start, FIntVector2(5, 5), FIntPoint(2, 2));
+	if (!Path.IsValid()) { AddError("Expected a valid path on open grid"); return false; }
+
+	FIntVector2 Prev = Start;
+	for (const FIntVector2& Step : Path.Tiles)
+	{
+		bool bDiagonal = FMath::Abs(Step.X - Prev.X) > 0 && FMath::Abs(Step.Y - Prev.Y) > 0;
+		TestFalse("2x2 path step must not be diagonal", bDiagonal);
+		Prev = Step;
+	}
 
 	return true;
 }

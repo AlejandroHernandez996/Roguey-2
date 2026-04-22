@@ -57,7 +57,7 @@ void URogueyActionManager::SetMoveAction(ARogueyPawn* Pawn, FIntPoint TargetTile
 	FIntVector2 Start = Pawn->GetTileCoord();
 	if (Start == Target) return;
 
-	FRogueyPath Path = RogueyPathfinder::FindPath(GridManager->GetGrid(), Start, Target);
+	FRogueyPath Path = RogueyPathfinder::FindPath(GridManager, Start, Target, Pawn->TileExtent);
 	if (!Path.IsValid()) return;
 
 	ClearAction(Pawn);
@@ -83,21 +83,50 @@ void URogueyActionManager::SetActorAction(ARogueyPawn* Pawn, AActor* Target, FNa
 
 	if (ActionId == "Attack")
 	{
-		ARogueyPawn* TargetPawn = Cast<ARogueyPawn>(Target);
-		if (!IsValid(TargetPawn) || TargetPawn->IsDead()) return;
-
-		ClearAction(Pawn);
-
-		// Always start as AttackMove — transitions to Attack immediately if already in range
-		FRogueyPendingAction Action;
-		Action.Type        = EActionType::AttackMove;
-		Action.TargetActor = TargetPawn;
-		PendingActions.Add(Pawn, Action);
-
-		// Kick off movement immediately — no one-tick delay before the pawn starts walking.
-		if (!IsInAttackRange(Pawn->GetTileCoord(), TargetPawn->GetTileCoord(), Pawn->AttackRange, Pawn->bAttackCardinalOnly))
-			RequestMoveTowardTarget(Pawn, TargetPawn);
+		if (ARogueyPawn* TargetPawn = Cast<ARogueyPawn>(Target))
+			SetAttackAction(Pawn, TargetPawn);
 	}
+	else if (ActionId == "Examine")
+	{
+		FString Text = Interactable->GetExamineText();
+		Pawn->ShowSpeechBubble(Text);
+	}
+}
+
+void URogueyActionManager::SetAttackAction(ARogueyPawn* Pawn, ARogueyPawn* Target)
+{
+	if (!IsValid(Pawn) || !IsValid(Target) || Target->IsDead()) return;
+
+	ClearAction(Pawn);
+
+	FRogueyPendingAction Action;
+	Action.Type        = EActionType::AttackMove;
+	Action.TargetActor = Target;
+	PendingActions.Add(Pawn, Action);
+
+	if (!IsInAttackRange(Pawn->GetTileCoord(), Pawn->TileExtent, Target->GetTileCoord(), Target->TileExtent, Pawn->AttackRange, Pawn->bAttackCardinalOnly))
+		RequestMoveTowardTarget(Pawn, Target);
+}
+
+bool URogueyActionManager::HasAction(ARogueyPawn* Pawn) const
+{
+	return PendingActions.Contains(Pawn);
+}
+
+EActionType URogueyActionManager::GetActionType(ARogueyPawn* Pawn) const
+{
+	if (const FRogueyPendingAction* Action = PendingActions.Find(Pawn))
+		return Action->Type;
+	return EActionType::None;
+}
+
+ARogueyPawn* URogueyActionManager::GetAttackTarget(const ARogueyPawn* Pawn) const
+{
+	if (!Pawn) return nullptr;
+	if (const FRogueyPendingAction* Action = PendingActions.Find(const_cast<ARogueyPawn*>(Pawn)))
+		if (Action->Type == EActionType::Attack || Action->Type == EActionType::AttackMove)
+			return Action->TargetActor.Get();
+	return nullptr;
 }
 
 void URogueyActionManager::ClearAction(ARogueyPawn* Pawn)
@@ -132,17 +161,43 @@ void URogueyActionManager::TickAttackMove(ARogueyPawn* Pawn, FRogueyPendingActio
 		return;
 	}
 
-	if (IsInAttackRange(Pawn->GetTileCoord(), Target->GetTileCoord(), Pawn->AttackRange, Pawn->bAttackCardinalOnly))
+	// Red X stall: NPC footprint overlaps target's footprint and the target is doing a
+	// non-move interaction. Players are never stalled — they can always walk out freely.
+	if (!Pawn->IsPlayerControlled())
 	{
-		// Stay in attack range — don't cancel movement yet.
-		// TickAttack will stop movement when the attack actually fires.
+		FIntVector2 PawnOrig = Pawn->GetTileCoord();
+		FIntVector2 TargOrig = Target->GetTileCoord();
+		bool bOverlap =
+			PawnOrig.X                      < TargOrig.X + Target->TileExtent.X &&
+			PawnOrig.X + Pawn->TileExtent.X > TargOrig.X &&
+			PawnOrig.Y                      < TargOrig.Y + Target->TileExtent.Y &&
+			PawnOrig.Y + Pawn->TileExtent.Y > TargOrig.Y;
+		if (bOverlap)
+		{
+			EActionType TargetAction = GetActionType(Target);
+			if (TargetAction == EActionType::Attack || TargetAction == EActionType::AttackMove)
+			{
+				MovementManager->CancelMove(Pawn);
+				return;
+			}
+		}
+	}
+
+	if (IsInAttackRange(Pawn->GetTileCoord(), Pawn->TileExtent, Target->GetTileCoord(), Target->TileExtent, Pawn->AttackRange, Pawn->bAttackCardinalOnly))
+	{
+		MovementManager->CancelMove(Pawn);
 		Action.Type = EActionType::Attack;
 		TickAttack(Pawn, Action, TickIndex);
 		return;
 	}
 
-	if (!MovementManager->HasPendingMove(Pawn))
+	// Only re-path when target moved or the current path was cleared (e.g. blocked tile).
+	FIntVector2 TargetCurrentTile = Target->GetTileCoord();
+	if (Action.LastKnownTargetTile != TargetCurrentTile || !MovementManager->HasPendingMove(Pawn))
+	{
+		Action.LastKnownTargetTile = TargetCurrentTile;
 		RequestMoveTowardTarget(Pawn, Target);
+	}
 }
 
 void URogueyActionManager::TickAttack(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex)
@@ -155,9 +210,10 @@ void URogueyActionManager::TickAttack(ARogueyPawn* Pawn, FRogueyPendingAction& A
 		return;
 	}
 
-	if (!IsInAttackRange(Pawn->GetTileCoord(), Target->GetTileCoord(), Pawn->AttackRange, Pawn->bAttackCardinalOnly))
+	if (!IsInAttackRange(Pawn->GetTileCoord(), Pawn->TileExtent, Target->GetTileCoord(), Target->TileExtent, Pawn->AttackRange, Pawn->bAttackCardinalOnly))
 	{
 		Action.Type = EActionType::AttackMove;
+		RequestMoveTowardTarget(Pawn, Target);
 		return;
 	}
 
@@ -165,7 +221,7 @@ void URogueyActionManager::TickAttack(ARogueyPawn* Pawn, FRogueyPendingAction& A
 	if (Damage < 0) return; // still on cooldown
 
 	Pawn->SetPawnState(EPawnState::Attacking);
-	Target->ReceiveHit(Damage);
+	Target->ReceiveHit(Damage, Pawn);
 
 	if (Target->CurrentHP <= 0)
 	{
@@ -177,8 +233,8 @@ void URogueyActionManager::TickAttack(ARogueyPawn* Pawn, FRogueyPendingAction& A
 
 void URogueyActionManager::RequestMoveTowardTarget(ARogueyPawn* Pawn, ARogueyPawn* Target)
 {
-	FIntVector2 BestGoal = FindBestAttackTile(Pawn->GetTileCoord(), Target->GetTileCoord(), Pawn->AttackRange, Pawn->bAttackCardinalOnly);
-	FRogueyPath Path = RogueyPathfinder::FindPath(GridManager->GetGrid(), Pawn->GetTileCoord(), BestGoal);
+	FIntVector2 BestGoal = FindBestAttackTile(Pawn->GetTileCoord(), Pawn->TileExtent, Target->GetTileCoord(), Target->TileExtent, Pawn->AttackRange, Pawn->bAttackCardinalOnly);
+	FRogueyPath Path = RogueyPathfinder::FindPath(GridManager, Pawn->GetTileCoord(), BestGoal, Pawn->TileExtent);
 	if (Path.IsValid())
 		MovementManager->RequestMove(Pawn, MoveTemp(Path), true);
 }
@@ -187,28 +243,44 @@ void URogueyActionManager::RequestMoveTowardTarget(ARogueyPawn* Pawn, ARogueyPaw
 // Helpers
 // ---------------------------------------------------------------------------
 
-bool URogueyActionManager::IsInAttackRange(FIntVector2 From, FIntVector2 To, int32 Range, bool bCardinalOnly)
+bool URogueyActionManager::IsInAttackRange(FIntVector2 AOrigin, FIntPoint AExtent, FIntVector2 TOrigin, FIntPoint TExtent, int32 Range, bool bCardinalOnly)
 {
-	int32 dx = FMath::Abs(From.X - To.X);
-	int32 dy = FMath::Abs(From.Y - To.Y);
+	// Axis-aligned gap between the two rects (0 means edges touch or overlap on that axis)
+	int32 gapX = FMath::Max(0, FMath::Max(AOrigin.X - (TOrigin.X + TExtent.X - 1),
+	                                        TOrigin.X - (AOrigin.X + AExtent.X - 1)));
+	int32 gapY = FMath::Max(0, FMath::Max(AOrigin.Y - (TOrigin.Y + TExtent.Y - 1),
+	                                        TOrigin.Y - (AOrigin.Y + AExtent.Y - 1)));
+	if (gapX == 0 && gapY == 0) return false; // rects overlap — can't attack from inside
 	if (bCardinalOnly)
-		return (dx == 0 && dy > 0 && dy <= Range) || (dy == 0 && dx > 0 && dx <= Range);
-	return FMath::Max(dx, dy) > 0 && FMath::Max(dx, dy) <= Range;
+		return (gapX == 0 && gapY > 0 && gapY <= Range) || (gapY == 0 && gapX > 0 && gapX <= Range);
+	return FMath::Max(gapX, gapY) <= Range;
 }
 
-FIntVector2 URogueyActionManager::FindBestAttackTile(FIntVector2 AttackerTile, FIntVector2 TargetTile, int32 Range, bool bCardinalOnly) const
+FIntVector2 URogueyActionManager::FindBestAttackTile(FIntVector2 AOrigin, FIntPoint AExtent, FIntVector2 TOrigin, FIntPoint TExtent, int32 Range, bool bCardinalOnly) const
 {
-	FIntVector2 BestGoal = AttackerTile; // fallback: stay put, pathfinder will fail gracefully
+	FIntVector2 BestGoal = AOrigin; // fallback: stay put, pathfinder will fail gracefully
 	int32 BestDist = INT_MAX;
 
-	for (int32 dx = -Range; dx <= Range; dx++)
+	// All valid attacker origins are within Range of the target rect, accounting for attacker size
+	for (int32 x = TOrigin.X - AExtent.X + 1 - Range; x <= TOrigin.X + TExtent.X - 1 + Range; x++)
 	{
-		for (int32 dy = -Range; dy <= Range; dy++)
+		for (int32 y = TOrigin.Y - AExtent.Y + 1 - Range; y <= TOrigin.Y + TExtent.Y - 1 + Range; y++)
 		{
-			FIntVector2 Candidate(TargetTile.X + dx, TargetTile.Y + dy);
-			if (!IsInAttackRange(Candidate, TargetTile, Range, bCardinalOnly)) continue;
-			if (!GridManager->IsInBounds(Candidate)) continue;
-			int32 D = ChebyshevDist(Candidate, AttackerTile);
+			FIntVector2 Candidate(x, y);
+			if (!IsInAttackRange(Candidate, AExtent, TOrigin, TExtent, Range, bCardinalOnly)) continue;
+
+			// Every tile in the attacker's footprint at this candidate origin must be valid
+			bool bValid = true;
+			for (int32 dx = 0; dx < AExtent.X && bValid; dx++)
+				for (int32 dy = 0; dy < AExtent.Y && bValid; dy++)
+				{
+					FIntVector2 Foot(x + dx, y + dy);
+					if (!GridManager->IsInBounds(Foot) || !GridManager->IsWalkable(Foot))
+						bValid = false;
+				}
+			if (!bValid) continue;
+
+			int32 D = ChebyshevDist(Candidate, AOrigin);
 			if (D < BestDist) { BestDist = D; BestGoal = Candidate; }
 		}
 	}

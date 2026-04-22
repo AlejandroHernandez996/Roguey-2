@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
 #include "Terrain/RogueyTerrain.h"
+#include "UI/RogueyHUD.h"
 #include "RogueyPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -61,8 +62,13 @@ private:
 	void OnSecondaryModifierStarted(const FInputActionValue& Value);
 	void OnSecondaryModifierCompleted(const FInputActionValue& Value);
 
-	bool bRotatingCamera = false;
+	void HandleRightClick();
+	void ExecuteContextEntry(const struct FContextMenuEntry& Entry);
+	void OnClickCompleted(const FInputActionValue& Value);
+
+	bool bRotatingCamera        = false;
 	bool bSecondaryModifierHeld = false;
+	bool bMenuWasOpenOnPress    = false; // blocks held-click movement after dismissing menu
 
 	UPROPERTY()
 	TObjectPtr<ARogueyTerrain> CachedTerrain;

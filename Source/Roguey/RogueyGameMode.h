@@ -6,6 +6,7 @@
 #include "Core/RogueyMovementManager.h"
 #include "Core/RogueyActionManager.h"
 #include "Core/RogueyDeathManager.h"
+#include "Npcs/RogueyNpcManager.h"
 #include "Combat/RogueyCombatManager.h"
 #include "Grid/RogueyGridManager.h"
 #include "Terrain/RogueyTerrain.h"
@@ -38,6 +39,9 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<URogueyActionManager> ActionManager;
+
+	UPROPERTY()
+	TObjectPtr<URogueyNpcManager> NpcManager;
 
 	UPROPERTY()
 	TObjectPtr<URogueyDeathManager> DeathManager;

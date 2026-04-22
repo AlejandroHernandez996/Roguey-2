@@ -1,4 +1,5 @@
 #include "RogueyPathfinder.h"
+#include "RogueyGridManager.h"
 
 namespace
 {
@@ -23,33 +24,40 @@ int32 RogueyPathfinder::Heuristic(FIntVector2 A, FIntVector2 B)
 	return FMath::Max(FMath::Abs(A.X - B.X), FMath::Abs(A.Y - B.Y)) * 10;
 }
 
-FRogueyPath RogueyPathfinder::FindPath(const FRogueyGrid& Grid, FIntVector2 Start, FIntVector2 Goal)
+FRogueyPath RogueyPathfinder::FindPath(URogueyGridManager* Grid, FIntVector2 Start, FIntVector2 Goal, FIntPoint Extent)
 {
-	if (!Grid.IsInBounds(Goal) || !Grid.IsWalkable(Goal))
-		return FRogueyPath();
+	// Validate all footprint tiles at goal
+	for (int32 dx = 0; dx < Extent.X; dx++)
+		for (int32 dy = 0; dy < Extent.Y; dy++)
+		{
+			FIntVector2 Tile(Goal.X + dx, Goal.Y + dy);
+			if (!Grid->IsInBounds(Tile) || !Grid->IsWalkable(Tile))
+				return FRogueyPath();
+		}
 
-	return RunAStar(Grid, Start, Goal, [Goal](FIntVector2 C)
+	return RunAStar(Grid, Start, Goal, Extent, [Goal](FIntVector2 C)
 	{
 		return C == Goal;
 	});
 }
 
-FRogueyPath RogueyPathfinder::FindPathToAdjacent(const FRogueyGrid& Grid, FIntVector2 Start, FIntVector2 Target)
+FRogueyPath RogueyPathfinder::FindPathToAdjacent(URogueyGridManager* Grid, FIntVector2 Start, FIntVector2 Target, FIntPoint Extent)
 {
 	// Already adjacent — no movement needed
 	if (FMath::Abs(Start.X - Target.X) <= 1 && FMath::Abs(Start.Y - Target.Y) <= 1 && Start != Target)
 		return FRogueyPath();
 
-	return RunAStar(Grid, Start, Target, [Target](FIntVector2 C)
+	return RunAStar(Grid, Start, Target, Extent, [Target](FIntVector2 C)
 	{
 		return FMath::Abs(C.X - Target.X) <= 1 && FMath::Abs(C.Y - Target.Y) <= 1 && C != Target;
 	});
 }
 
 FRogueyPath RogueyPathfinder::RunAStar(
-	const FRogueyGrid& Grid,
+	URogueyGridManager* Grid,
 	FIntVector2 Start,
 	FIntVector2 HeuristicTarget,
+	FIntPoint Extent,
 	TFunctionRef<bool(FIntVector2)> IsGoal)
 {
 	FRogueyPath Result;
@@ -101,7 +109,7 @@ FRogueyPath RogueyPathfinder::RunAStar(
 		{
 			FIntVector2 Neighbor = Current.Coord + Dir;
 
-			if (!Grid.CanMove(Current.Coord, Neighbor)) continue;
+			if (!Grid->CanMoveTo(Current.Coord, Neighbor, Extent)) continue;
 
 			// Cardinals cost 10, diagonals cost 11 — same step count but cardinals preferred on ties
 			bool bDiagonal = (Dir.X != 0 && Dir.Y != 0);

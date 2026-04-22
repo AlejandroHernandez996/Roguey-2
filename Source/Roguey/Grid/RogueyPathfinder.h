@@ -1,7 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RogueyGrid.h"
+
+class URogueyGridManager;
 
 struct ROGUEY_API FRogueyPath
 {
@@ -16,17 +17,15 @@ struct ROGUEY_API FRogueyPath
 class ROGUEY_API RogueyPathfinder
 {
 public:
-	// Find shortest path from Start to Goal
-	static FRogueyPath FindPath(const FRogueyGrid& Grid, FIntVector2 Start, FIntVector2 Goal);
-
-	// Find shortest path to any tile adjacent to Target (for melee/interaction)
-	static FRogueyPath FindPathToAdjacent(const FRogueyGrid& Grid, FIntVector2 Start, FIntVector2 Target);
+	static FRogueyPath FindPath(URogueyGridManager* Grid, FIntVector2 Start, FIntVector2 Goal, FIntPoint Extent = FIntPoint(1, 1));
+	static FRogueyPath FindPathToAdjacent(URogueyGridManager* Grid, FIntVector2 Start, FIntVector2 Target, FIntPoint Extent = FIntPoint(1, 1));
 
 private:
 	static FRogueyPath RunAStar(
-		const FRogueyGrid& Grid,
+		URogueyGridManager* Grid,
 		FIntVector2 Start,
 		FIntVector2 HeuristicTarget,
+		FIntPoint Extent,
 		TFunctionRef<bool(FIntVector2)> IsGoal
 	);
 

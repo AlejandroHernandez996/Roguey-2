@@ -34,6 +34,7 @@ struct FRogueyPendingAction
 	EActionType Type = EActionType::None;
 	TWeakObjectPtr<ARogueyPawn> TargetActor;
 	FIntPoint TargetTile = FIntPoint(-1, -1);
+	FIntVector2 LastKnownTargetTile = FIntVector2(-1, -1);
 
 	bool IsActive() const { return Type != EActionType::None; }
 	void Clear() { *this = FRogueyPendingAction(); }

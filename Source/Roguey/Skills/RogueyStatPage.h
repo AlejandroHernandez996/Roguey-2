@@ -15,7 +15,10 @@ struct ROGUEY_API FRogueyStatPage
 
 	void InitDefaults()
 	{
-		Stats.Add(ERogueyStatType::Hitpoints,  FRogueyStat());
+		FRogueyStat HpStat;
+		HpStat.CurrentLevel = 10;
+		HpStat.BaseLevel    = 10;
+		Stats.Add(ERogueyStatType::Hitpoints, HpStat);
 		Stats.Add(ERogueyStatType::Attack,     FRogueyStat());
 		Stats.Add(ERogueyStatType::Strength,   FRogueyStat());
 		Stats.Add(ERogueyStatType::Defence,    FRogueyStat());

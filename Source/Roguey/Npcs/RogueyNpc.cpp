@@ -12,7 +12,16 @@ void ARogueyNpc::BeginPlay()
 	{
 		CurrentHP = NpcMaxHP;
 		MaxHP     = NpcMaxHP;
+		SpawnTile = GetTileCoord();
 	}
+}
+
+void ARogueyNpc::ReceiveHit(int32 Damage, ARogueyPawn* Attacker)
+{
+	Super::ReceiveHit(Damage, Attacker);
+	// Capture first attacker this combat — NpcManager reads it next tick
+	if (Attacker && !LastAttacker.IsValid())
+		LastAttacker = Attacker;
 }
 
 FText ARogueyNpc::GetTargetName() const
