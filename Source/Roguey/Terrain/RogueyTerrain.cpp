@@ -96,7 +96,7 @@ void ARogueyTerrain::BuildMesh(int32 GridW, int32 GridH)
 			float Z11 = HeightGrid[(ty + 1) * VW + tx + 1];
 
 			float AvgZ = (Z00 + Z10 + Z01 + Z11) * 0.25f;
-			uint8 V8   = (uint8)(AvgZ / MaxHeight * 255);
+			uint8 V8   = (MaxHeight > 0.f) ? (uint8)(FMath::Clamp(AvgZ / MaxHeight, 0.f, 1.f) * 255) : 128;
 			FColor TileColor(V8, V8, V8, 255);
 
 			float X0 = (GridMinX + tx)     * TileSize;
@@ -131,6 +131,14 @@ void ARogueyTerrain::BuildMesh(int32 GridW, int32 GridH)
 
 	if (Material)
 		ProcMesh->SetMaterial(0, Material);
+}
+
+float ARogueyTerrain::GetTileHeight(FIntVector2 Tile) const
+{
+	FVector BL, BR, TL, TR;
+	if (GetTileCorners(Tile, BL, BR, TL, TR))
+		return (BL.Z + BR.Z + TL.Z + TR.Z) * 0.25f;
+	return 0.f;
 }
 
 bool ARogueyTerrain::GetTileCorners(FIntVector2 Tile, FVector& OutBL, FVector& OutBR, FVector& OutTL, FVector& OutTR) const

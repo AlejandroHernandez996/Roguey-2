@@ -2,14 +2,17 @@
 
 #include "Net/UnrealNetwork.h"
 #include "Components/CapsuleComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "Roguey/RogueyGameMode.h"
-#include "Roguey/Grid/RogueyGridManager.h"
-#include "Roguey/Grid/RogueyPathfinder.h"
+#include "Roguey/Terrain/RogueyTerrain.h"
+#include "Roguey/UI/RogueyHUD.h"
 
 ARogueyPawn::ARogueyPawn()
 {
 	GetCapsuleComponent()->InitCapsuleSize(45.f, 100.f);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -71,32 +74,36 @@ void ARogueyPawn::Tick(float DeltaSeconds)
 
 	if (TrueTileQueue.IsEmpty()) return;
 
-	FVector Target = *TrueTileQueue.Peek();
+	FVector Target  = TrueTileQueue[0];
 	FVector Current = GetActorLocation();
-	Target.Z = Current.Z;
 
-	float Dist = FVector::Dist2D(Current, Target);
+	float Dist2D = FVector::Dist2D(Current, Target);
 
-	if (Dist <= 1.f)
+	if (Dist2D <= 1.f)
 	{
 		SetActorLocation(Target);
-		TrueTileQueue.Pop();
+		TrueTileQueue.RemoveAt(0, 1, false);
 		return;
 	}
 
-	FVector Dir = (Target - Current).GetSafeNormal2D();
-	float SpeedMult = (RunStepTile != FIntPoint(-1, -1)) ? 2.f : 1.f;
-	float StepSize = VisualMoveSpeed * SpeedMult * DeltaSeconds;
+	FVector Dir2D = (Target - Current).GetSafeNormal2D();
 
-	if (StepSize >= Dist)
+	// Scale speed with queue depth so the visual catches up within one tick window.
+	// Cap at 8x — prevents a single hitched frame from teleporting the pawn.
+	float BaseMult  = (RunStepTile != FIntPoint(-1, -1)) ? 2.f : 1.f;
+	float SpeedMult = FMath::Clamp(FMath::Max(BaseMult, (float)TrueTileQueue.Num()), 1.f, 8.f);
+	float StepSize  = VisualMoveSpeed * SpeedMult * DeltaSeconds;
+
+	if (StepSize >= Dist2D)
 	{
 		SetActorLocation(Target);
-		TrueTileQueue.Pop();
+		TrueTileQueue.RemoveAt(0, 1, false);
 	}
 	else
 	{
-		SetActorLocation(Current + Dir * StepSize);
-		SetActorRotation(Dir.Rotation());
+		float Alpha = StepSize / Dist2D;
+		SetActorLocation(FMath::Lerp(Current, Target, Alpha));
+		SetActorRotation(Dir2D.Rotation());
 	}
 }
 
@@ -121,32 +128,38 @@ void ARogueyPawn::OnRep_TilePosition()
 
 void ARogueyPawn::EnqueueVisualPosition(FIntVector2 Tile)
 {
+	if (!CachedTerrain)
+	{
+		for (TActorIterator<ARogueyTerrain> It(GetWorld()); It; ++It)
+		{
+			CachedTerrain = *It;
+			break;
+		}
+	}
+
 	const float Half = RogueyConstants::TileSize * 0.5f;
+	float SurfaceZ = CachedTerrain ? CachedTerrain->GetTileHeight(Tile) : 0.f;
 	FVector WorldPos = FVector(
 		Tile.X * RogueyConstants::TileSize + Half,
 		Tile.Y * RogueyConstants::TileSize + Half,
-		GetActorLocation().Z
+		SurfaceZ + RogueyConstants::PawnHoverHeight
 	);
-	TrueTileQueue.Enqueue(WorldPos);
+	TrueTileQueue.Add(WorldPos);
 }
 
 void ARogueyPawn::Server_RequestMoveTo_Implementation(FIntPoint InTargetTile, bool bRunning)
 {
 	ARogueyGameMode* GameMode = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode());
-	if (!GameMode || !GameMode->GridManager || !GameMode->MovementManager) return;
+	if (!GameMode || !GameMode->ActionManager) return;
+	GameMode->ActionManager->SetMoveAction(this, InTargetTile, bRunning);
+}
 
-	URogueyGridManager* Grid = GameMode->GridManager;
-	FIntVector2 Target(InTargetTile.X, InTargetTile.Y);
-
-	if (!Grid->IsInBounds(Target)) return;
-
-	FIntVector2 Start = GetTileCoord();
-	if (Start == Target) return;
-
-	FRogueyPath Path = RogueyPathfinder::FindPath(Grid->GetGrid(), Start, Target);
-	if (!Path.IsValid()) return;
-
-	GameMode->MovementManager->RequestMove(this, Path, bRunning);
+void ARogueyPawn::Server_RequestActorAction_Implementation(AActor* Target, FName ActionId)
+{
+	if (!IsValid(Target)) return;
+	ARogueyGameMode* GameMode = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode());
+	if (!GameMode || !GameMode->ActionManager) return;
+	GameMode->ActionManager->SetActorAction(this, Target, ActionId);
 }
 
 void ARogueyPawn::SetPawnState(EPawnState NewState)
@@ -163,7 +176,21 @@ void ARogueyPawn::OnRep_PawnState()
 
 void ARogueyPawn::OnRep_HP()
 {
-	// Blueprint / UI can bind to this for health bar updates
+}
+
+void ARogueyPawn::ReceiveHit(int32 Damage)
+{
+	LastHitDamage    = Damage;
+	HitSplatCounter++;
+	LastHitTime      = GetWorld()->GetTimeSeconds();
+	OnRep_HitSplat(); // fire locally on server/listen-server host
+}
+
+void ARogueyPawn::OnRep_HitSplat()
+{
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		if (ARogueyHUD* HUD = Cast<ARogueyHUD>(PC->GetHUD()))
+			HUD->AddHitSplat(GetActorLocation() + FVector(0.f, 0.f, 220.f), LastHitDamage);
 }
 
 void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -176,4 +203,7 @@ void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ARogueyPawn, MaxHP);
 	DOREPLIFETIME(ARogueyPawn, DestinationTile);
 	DOREPLIFETIME(ARogueyPawn, RunStepTile);
+	DOREPLIFETIME(ARogueyPawn, LastHitDamage);
+	DOREPLIFETIME(ARogueyPawn, HitSplatCounter);
+	DOREPLIFETIME(ARogueyPawn, LastHitTime);
 }

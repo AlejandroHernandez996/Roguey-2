@@ -8,6 +8,7 @@
 #include "RogueyPawn.generated.h"
 
 class ARogueyGameMode;
+class ARogueyTerrain;
 class URogueyGridManager;
 
 UCLASS()
@@ -32,6 +33,23 @@ public:
 	UFUNCTION()
 	void OnRep_HP();
 
+	// Replicated hit event — drives damage splat on all clients
+	UPROPERTY(ReplicatedUsing = OnRep_HitSplat)
+	int32 LastHitDamage = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_HitSplat)
+	uint8 HitSplatCounter = 0; // increments each hit so OnRep fires even for same damage value
+
+	UFUNCTION()
+	void OnRep_HitSplat();
+
+	// World time of last hit — replicated for health bar visibility (hide after 10 ticks = 6 s)
+	UPROPERTY(Replicated, BlueprintReadOnly)
+	float LastHitTime = -1.f;
+
+	// Called server-side when this pawn takes a hit; updates replicated UI state.
+	void ReceiveHit(int32 Damage);
+
 	// Current tile position — server authoritative, triggers visual interpolation on rep
 	UPROPERTY(ReplicatedUsing = OnRep_TilePosition)
 	FIntPoint TilePosition;
@@ -47,6 +65,10 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestMoveTo(FIntPoint TargetTile, bool bRunning);
 
+	// Client calls this when clicking an interactable; server resolves via ActionManager
+	UFUNCTION(Server, Reliable)
+	void Server_RequestActorAction(AActor* Target, FName ActionId);
+
 	// State — replicated for animation
 	UPROPERTY(ReplicatedUsing = OnRep_PawnState, BlueprintReadOnly)
 	EPawnState PawnState = EPawnState::Idle;
@@ -60,8 +82,12 @@ public:
 	int32 LastAttackTick = 0;
 	int32 AttackCooldownTicks = 4;
 
-	UPROPERTY()
-	TWeakObjectPtr<ARogueyPawn> CurrentTarget;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	int32 AttackRange = 1;
+
+	// True = melee (N/S/E/W only). False = Chebyshev (includes diagonals).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	bool bAttackCardinalOnly = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Team")
 	int32 TeamId = 0;
@@ -90,7 +116,10 @@ private:
 	void EnqueueVisualPosition(FIntVector2 Tile);
 
 	// Visual interpolation queue — drives smooth movement between ticks
-	TQueue<FVector> TrueTileQueue;
+	TArray<FVector> TrueTileQueue;
+
+	UPROPERTY()
+	TObjectPtr<ARogueyTerrain> CachedTerrain;
 
 	// UU/s needed to cross one tile in exactly one game tick
 	static constexpr float VisualMoveSpeed = RogueyConstants::TileSize / RogueyConstants::GameTickInterval;

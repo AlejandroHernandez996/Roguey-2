@@ -9,8 +9,10 @@
 #include "DrawDebugHelpers.h"
 #include "EngineUtils.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Core/RogueyInteractable.h"
 #include "Grid/RogueyGridManager.h"
 #include "Terrain/RogueyTerrain.h"
+#include "UI/RogueyHUD.h"
 
 ARogueyPlayerController::ARogueyPlayerController()
 {
@@ -82,7 +84,7 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 	}
 
 	const float TileSize = RogueyConstants::TileSize;
-	const float LineZ    = RogueyConstants::PawnHoverHeight * 0.5f;
+	const float LineZ    = 8.f; // small offset above terrain surface to avoid z-fighting
 
 	auto WorldToTile = [&](FVector Loc) -> FIntVector2
 	{
@@ -110,13 +112,41 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 
 	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
 
-	// Hovered tile — green
+	// Hovered tile — green + action label
 	FHitResult Hit;
 	FCollisionQueryParams Params;
 	if (RogueyPawn) Params.AddIgnoredActor(RogueyPawn);
 
-	if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
+	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
+	{
+		if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
+		{
+			DrawTile(WorldToTile(Hit.Location), FColor(0, 255, 80));
+
+			AActor* HitActor = Hit.GetActor();
+			if (HitActor && HitActor != RogueyPawn && HitActor->Implements<URogueyInteractable>())
+			{
+				IRogueyInteractable* Interactable = Cast<IRogueyInteractable>(HitActor);
+				TArray<FRogueyActionDef> Actions = Interactable->GetActions();
+				HUD->ActionPart = Actions.Num() > 0 ? Actions[0].DisplayName.ToString() : TEXT("");
+				HUD->TargetPart = Interactable->GetTargetName().ToString();
+			}
+			else
+			{
+				HUD->ActionPart = TEXT("Walk here");
+				HUD->TargetPart = TEXT("");
+			}
+		}
+		else
+		{
+			HUD->ActionPart = TEXT("");
+			HUD->TargetPart = TEXT("");
+		}
+	}
+	else if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
+	{
 		DrawTile(WorldToTile(Hit.Location), FColor(0, 255, 80));
+	}
 
 	if (RogueyPawn)
 	{
@@ -197,6 +227,18 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 	Params.AddIgnoredActor(RogueyPawn);
 
 	if (!GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit)) return;
+
+	// Interactable takes priority over move — dispatch the default (first) action
+	if (AActor* HitActor = Hit.GetActor())
+	{
+		if (HitActor != RogueyPawn && HitActor->Implements<URogueyInteractable>())
+		{
+			TArray<FRogueyActionDef> Actions = Cast<IRogueyInteractable>(HitActor)->GetActions();
+			if (Actions.Num() > 0)
+				RogueyPawn->Server_RequestActorAction(HitActor, Actions[0].ActionId);
+			return;
+		}
+	}
 
 	FIntPoint TargetTile(
 		FMath::FloorToInt(Hit.Location.X / RogueyConstants::TileSize),

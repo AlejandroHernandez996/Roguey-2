@@ -2,12 +2,16 @@
 #include "RogueyPlayerController.h"
 #include "Core/RogueyConstants.h"
 #include "Terrain/RogueyTerrain.h"
+#include "Npcs/RogueyNpc.h"
+#include "UI/RogueyHUD.h"
 
 ARogueyGameMode::ARogueyGameMode()
 {
 	PlayerControllerClass = ARogueyPlayerController::StaticClass();
+	HUDClass = ARogueyHUD::StaticClass();
 	DefaultPawnClass = nullptr;
-	PlayerStartTiles = {FIntPoint(30, 32), FIntPoint(34, 32)};
+	PlayerStartTiles = { FIntPoint(30, 32), FIntPoint(34, 32) };
+	NpcSpawnTiles    = { FIntPoint(32, 32) };
 }
 
 void ARogueyGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -21,6 +25,19 @@ void ARogueyGameMode::InitGame(const FString& MapName, const FString& Options, F
 	MovementManager = NewObject<URogueyMovementManager>(this);
 	MovementManager->Init(GridManager);
 	RegisterTickable(MovementManager);
+
+	// CombatManager is a pure damage calculator — not tickable
+	CombatManager = NewObject<URogueyCombatManager>(this);
+
+	// ActionManager ticks after MovementManager so it sees updated positions
+	ActionManager = NewObject<URogueyActionManager>(this);
+	ActionManager->Init(GridManager, MovementManager, CombatManager);
+	RegisterTickable(ActionManager);
+
+	// DeathManager ticks last — after ActionManager has cleared actions on dead pawns
+	DeathManager = NewObject<URogueyDeathManager>(this);
+	DeathManager->Init(GridManager, ActionManager);
+	RegisterTickable(DeathManager);
 }
 
 void ARogueyGameMode::BeginPlay()
@@ -31,6 +48,18 @@ void ARogueyGameMode::BeginPlay()
 	Terrain = GetWorld()->SpawnActor<ARogueyTerrain>(ClassToSpawn, FVector::ZeroVector, FRotator::ZeroRotator);
 	if (Terrain)
 		Terrain->BuildFromGrid(GridManager);
+
+	for (const FIntPoint& Tile : NpcSpawnTiles)
+	{
+		FVector WorldPos = GridManager->TileToWorld(FIntVector2(Tile.X, Tile.Y));
+		float SurfaceZ = Terrain ? Terrain->GetTileHeight(FIntVector2(Tile.X, Tile.Y)) : 0.f;
+		WorldPos.Z = SurfaceZ + RogueyConstants::PawnHoverHeight;
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		TSubclassOf<ARogueyNpc> NpcClassToSpawn = NpcClass ? NpcClass : TSubclassOf<ARogueyNpc>(ARogueyNpc::StaticClass());
+		GetWorld()->SpawnActor<ARogueyNpc>(NpcClassToSpawn, FTransform(WorldPos), SpawnParams);
+	}
 
 	GetWorldTimerManager().SetTimer(
 		GameTickHandle,
@@ -72,7 +101,8 @@ void ARogueyGameMode::SpawnAndPossessCharacter(APlayerController* PC)
 
 	FIntVector2 StartTile(StartPoint.X, StartPoint.Y);
 	FVector StartWorld = GridManager->TileToWorld(StartTile);
-	StartWorld.Z = RogueyConstants::PawnHoverHeight;
+	float SurfaceZ = Terrain ? Terrain->GetTileHeight(StartTile) : 0.f;
+	StartWorld.Z = SurfaceZ + RogueyConstants::PawnHoverHeight;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;

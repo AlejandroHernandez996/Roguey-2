@@ -20,6 +20,9 @@ public:
 	// Returns world-space positions of the 4 corners of a tile
 	bool GetTileCorners(FIntVector2 Tile, FVector& OutBL, FVector& OutBR, FVector& OutTL, FVector& OutTR) const;
 
+	// Returns average surface Z at the centre of a tile
+	float GetTileHeight(FIntVector2 Tile) const;
+
 	UPROPERTY(EditAnywhere, Category = "Terrain")
 	float MaxHeight = 50.f;
 
