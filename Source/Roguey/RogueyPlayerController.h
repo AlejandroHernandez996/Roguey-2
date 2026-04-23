@@ -36,6 +36,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> SecondaryModifierAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> TabStatsAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> TabEquipAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> TabInvAction;
+
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float CameraZoomSpeed = 100.f;
 
@@ -61,8 +70,13 @@ private:
 	void OnCameraZoom(const FInputActionValue& Value);
 	void OnSecondaryModifierStarted(const FInputActionValue& Value);
 	void OnSecondaryModifierCompleted(const FInputActionValue& Value);
+	void OnTabStats(const FInputActionValue& Value);
+	void OnTabEquip(const FInputActionValue& Value);
+	void OnTabInv(const FInputActionValue& Value);
 
 	void HandleRightClick();
+	void HandleDevPanelLeftClick(const struct FDevPanelHit& Hit);
+	void HandleDevPanelRightClick(const struct FDevPanelHit& Hit, float MX, float MY);
 	void ExecuteContextEntry(const struct FContextMenuEntry& Entry);
 	void OnClickCompleted(const FInputActionValue& Value);
 

@@ -5,6 +5,9 @@
 #include "RogueyPawnState.h"
 #include "GameFramework/Character.h"
 #include "Roguey/Combat/RogueyEquipmentBonuses.h"
+#include "Roguey/Items/RogueyEquipmentSlot.h"
+#include "Roguey/Items/RogueyItem.h"
+#include "Roguey/Items/RogueyItemRegistry.h"
 #include "Roguey/Skills/RogueyStatPage.h"
 #include "RogueyPawn.generated.h"
 
@@ -87,6 +90,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	FRogueyEquipmentBonuses EquipmentBonuses;
 
+	// Inventory — 28 slots, server-authoritative
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	TArray<FRogueyItem> Inventory;
+
+	// Equipment slots — server-authoritative
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	TMap<EEquipmentSlot, FRogueyItem> Equipment;
+
+	// Re-sums EquipmentBonuses from all currently equipped items.
+	// Call after equipping or unequipping anything.
+	void RecalcEquipmentBonuses();
+
+	UFUNCTION(Server, Reliable)
+	void Server_EquipFromInventory(int32 InvSlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void Server_UnequipToInventory(EEquipmentSlot Slot);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 AttackRange = 1;
 
@@ -140,8 +161,8 @@ protected:
 private:
 	void EnqueueVisualPosition(FIntVector2 Tile);
 
-	// Visual interpolation queue — drives smooth movement between ticks
-	TArray<FVector> TrueTileQueue;
+	// Visual interpolation queue — tile coords, world pos computed lazily in Tick so terrain height is always ready
+	TArray<FIntVector2> TrueTileQueue;
 
 	UPROPERTY()
 	TObjectPtr<ARogueyTerrain> CachedTerrain;

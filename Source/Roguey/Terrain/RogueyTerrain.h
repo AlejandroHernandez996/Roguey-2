@@ -23,6 +23,8 @@ public:
 	// Returns average surface Z at the centre of a tile
 	float GetTileHeight(FIntVector2 Tile) const;
 
+	bool IsHeightGridReady() const { return !HeightGrid.IsEmpty(); }
+
 	UPROPERTY(EditAnywhere, Category = "Terrain")
 	float MaxHeight = 50.f;
 

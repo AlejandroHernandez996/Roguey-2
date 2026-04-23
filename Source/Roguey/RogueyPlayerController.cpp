@@ -12,6 +12,7 @@
 #include "Core/RogueyInteractable.h"
 #include "Core/RogueyConstants.h"
 #include "Grid/RogueyGridManager.h"
+#include "Items/RogueyItemRegistry.h"
 #include "Terrain/RogueyTerrain.h"
 #include "UI/RogueyHUD.h"
 
@@ -69,6 +70,10 @@ void ARogueyPlayerController::SetupInputComponent()
 			EIC->BindAction(SecondaryModifierAction, ETriggerEvent::Started,   this, &ARogueyPlayerController::OnSecondaryModifierStarted);
 			EIC->BindAction(SecondaryModifierAction, ETriggerEvent::Completed, this, &ARogueyPlayerController::OnSecondaryModifierCompleted);
 		}
+
+		if (TabStatsAction) EIC->BindAction(TabStatsAction, ETriggerEvent::Started, this, &ARogueyPlayerController::OnTabStats);
+		if (TabEquipAction) EIC->BindAction(TabEquipAction, ETriggerEvent::Started, this, &ARogueyPlayerController::OnTabEquip);
+		if (TabInvAction)   EIC->BindAction(TabInvAction,   ETriggerEvent::Started, this, &ARogueyPlayerController::OnTabInv);
 	}
 }
 
@@ -78,13 +83,36 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 
 	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
 
-	// Right-click — open (or close) context menu
+	// Tab — toggle dev panel
+	if (WasInputKeyJustPressed(EKeys::Tab) && HUD)
+		HUD->bDevPanelOpen = !HUD->bDevPanelOpen;
+
+	// Right-click — open (or close) context menu, or dev panel right-click
 	if (WasInputKeyJustPressed(EKeys::RightMouseButton) && !bRotatingCamera)
 	{
 		if (HUD && HUD->IsContextMenuOpen())
+		{
 			HUD->CloseContextMenu();
+		}
+		else if (HUD && HUD->bDevPanelOpen)
+		{
+			float MX, MY;
+			GetMousePosition(MX, MY);
+			if (HUD->IsMouseOverDevPanel(MX, MY))
+			{
+				FDevPanelHit PanelHit = HUD->HitTestDevPanel(MX, MY);
+				if (PanelHit.Type != FDevPanelHit::EType::None && PanelHit.Type != FDevPanelHit::EType::Tab)
+					HandleDevPanelRightClick(PanelHit, MX, MY);
+			}
+			else
+			{
+				HandleRightClick();
+			}
+		}
 		else
+		{
 			HandleRightClick();
+		}
 	}
 
 	// Escape — close menu
@@ -265,6 +293,24 @@ void ARogueyPlayerController::OnSecondaryModifierCompleted(const FInputActionVal
 	bSecondaryModifierHeld = false;
 }
 
+void ARogueyPlayerController::OnTabStats(const FInputActionValue& Value)
+{
+	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
+		{ HUD->bDevPanelOpen = true; HUD->SetActiveTab(0); }
+}
+
+void ARogueyPlayerController::OnTabEquip(const FInputActionValue& Value)
+{
+	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
+		{ HUD->bDevPanelOpen = true; HUD->SetActiveTab(1); }
+}
+
+void ARogueyPlayerController::OnTabInv(const FInputActionValue& Value)
+{
+	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
+		{ HUD->bDevPanelOpen = true; HUD->SetActiveTab(2); }
+}
+
 void ARogueyPlayerController::OnClickCompleted(const FInputActionValue& Value)
 {
 	bMenuWasOpenOnPress = false;
@@ -289,6 +335,18 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 		return;
 	}
 	if (bMenuWasOpenOnPress) return; // held after dismissing menu — don't fire movement
+
+	// Dev panel left-click interception
+	if (ClickHUD && ClickHUD->bDevPanelOpen)
+	{
+		float MX, MY;
+		GetMousePosition(MX, MY);
+		if (ClickHUD->IsMouseOverDevPanel(MX, MY))
+		{
+			HandleDevPanelLeftClick(ClickHUD->HitTestDevPanel(MX, MY));
+			return;
+		}
+	}
 
 	if (bRotatingCamera) return;
 
@@ -391,6 +449,108 @@ void ARogueyPlayerController::HandleRightClick()
 	HUD->OpenContextMenu(MouseX, MouseY, Entries);
 }
 
+void ARogueyPlayerController::HandleDevPanelLeftClick(const FDevPanelHit& Hit)
+{
+	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
+	if (!HUD) return;
+
+	if (Hit.Type == FDevPanelHit::EType::Tab)
+	{
+		HUD->SetActiveTab(Hit.Index);
+		return;
+	}
+
+	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
+	if (!RogueyPawn) return;
+
+	if (Hit.Type == FDevPanelHit::EType::InvSlot)
+	{
+		if (RogueyPawn->Inventory.IsValidIndex(Hit.Index) && !RogueyPawn->Inventory[Hit.Index].IsEmpty())
+			RogueyPawn->Server_EquipFromInventory(Hit.Index);
+	}
+	else if (Hit.Type == FDevPanelHit::EType::EquipSlot)
+	{
+		RogueyPawn->Server_UnequipToInventory(Hit.EquipSlot);
+	}
+}
+
+void ARogueyPlayerController::HandleDevPanelRightClick(const FDevPanelHit& Hit, float MX, float MY)
+{
+	ARogueyHUD* HUD       = Cast<ARogueyHUD>(GetHUD());
+	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
+	if (!HUD || !RogueyPawn) return;
+
+	URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+	TArray<FContextMenuEntry> Entries;
+
+	if (Hit.Type == FDevPanelHit::EType::InvSlot)
+	{
+		if (!RogueyPawn->Inventory.IsValidIndex(Hit.Index) || RogueyPawn->Inventory[Hit.Index].IsEmpty()) return;
+		const FRogueyItem&    Item = RogueyPawn->Inventory[Hit.Index];
+		const FRogueyItemRow* Row  = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
+		FString TargetName = Row ? Row->DisplayName : Item.ItemId.ToString();
+
+		if (Row && Row->IsEquippable())
+		{
+			FContextMenuEntry E;
+			E.ActionText   = TEXT("Equip");
+			E.TargetText   = TargetName;
+			E.ActionColor  = FLinearColor::White;
+			E.InvSlotIndex = Hit.Index;
+			Entries.Add(E);
+		}
+
+		{
+			FContextMenuEntry E;
+			E.ActionText   = TEXT("Examine");
+			E.TargetText   = TargetName;
+			E.ActionColor  = FLinearColor(0.6f, 0.9f, 0.6f);
+			E.InvSlotIndex = Hit.Index;
+			E.ActionId     = "Examine";
+			Entries.Add(E);
+		}
+	}
+	else if (Hit.Type == FDevPanelHit::EType::EquipSlot)
+	{
+		const FRogueyItem* Item = RogueyPawn->Equipment.Find(Hit.EquipSlot);
+		if (!Item || Item->IsEmpty()) return;
+
+		const FRogueyItemRow* Row = Registry ? Registry->FindItem(Item->ItemId) : nullptr;
+		FString TargetName = Row ? Row->DisplayName : Item->ItemId.ToString();
+
+		{
+			FContextMenuEntry E;
+			E.ActionText       = TEXT("Remove");
+			E.TargetText       = TargetName;
+			E.ActionColor      = FLinearColor::White;
+			E.bIsEquipSlotAction = true;
+			E.EquipSlotTarget  = Hit.EquipSlot;
+			Entries.Add(E);
+		}
+
+		{
+			FContextMenuEntry E;
+			E.ActionText       = TEXT("Examine");
+			E.TargetText       = TargetName;
+			E.ActionColor      = FLinearColor(0.6f, 0.9f, 0.6f);
+			E.bIsEquipSlotAction = true;
+			E.EquipSlotTarget  = Hit.EquipSlot;
+			E.ActionId         = "Examine";
+			Entries.Add(E);
+		}
+	}
+
+	if (Entries.IsEmpty()) return;
+
+	FContextMenuEntry Cancel;
+	Cancel.ActionText = TEXT("Cancel");
+	Cancel.ActionColor = FLinearColor(0.85f, 0.15f, 0.15f);
+	Cancel.bIsCancel  = true;
+	Entries.Add(Cancel);
+
+	HUD->OpenContextMenu(MX, MY, Entries);
+}
+
 void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry)
 {
 	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
@@ -402,6 +562,47 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 		return;
 	}
 
+	// Inventory slot action
+	if (Entry.InvSlotIndex >= 0)
+	{
+		if (Entry.ActionId == "Examine")
+		{
+			URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+			if (RogueyPawn->Inventory.IsValidIndex(Entry.InvSlotIndex))
+			{
+				const FRogueyItem&    Item = RogueyPawn->Inventory[Entry.InvSlotIndex];
+				const FRogueyItemRow* Row  = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
+				RogueyPawn->ShowSpeechBubble(Row && !Row->ExamineText.IsEmpty() ? Row->ExamineText : Item.ItemId.ToString());
+			}
+		}
+		else
+		{
+			RogueyPawn->Server_EquipFromInventory(Entry.InvSlotIndex);
+		}
+		return;
+	}
+
+	// Equipment slot action
+	if (Entry.bIsEquipSlotAction)
+	{
+		if (Entry.ActionId == "Examine")
+		{
+			URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+			const FRogueyItem*   Item     = RogueyPawn->Equipment.Find(Entry.EquipSlotTarget);
+			if (Item && !Item->IsEmpty())
+			{
+				const FRogueyItemRow* Row = Registry ? Registry->FindItem(Item->ItemId) : nullptr;
+				RogueyPawn->ShowSpeechBubble(Row && !Row->ExamineText.IsEmpty() ? Row->ExamineText : Item->ItemId.ToString());
+			}
+		}
+		else
+		{
+			RogueyPawn->Server_UnequipToInventory(Entry.EquipSlotTarget);
+		}
+		return;
+	}
+
+	// World interactable action
 	AActor* Target = Entry.TargetActor.Get();
 	if (IsValid(Target) && !Entry.ActionId.IsNone())
 		RogueyPawn->Server_RequestActorAction(Target, Entry.ActionId);

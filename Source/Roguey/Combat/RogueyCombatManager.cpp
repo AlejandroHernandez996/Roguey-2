@@ -1,5 +1,6 @@
 #include "RogueyCombatManager.h"
 #include "Roguey/Core/RogueyPawn.h"
+#include "Roguey/Skills/RogueyStat.h"
 #include "Roguey/Skills/RogueyStatType.h"
 
 int32 URogueyCombatManager::TryAttack(ARogueyPawn* Attacker, ARogueyPawn* Target, int32 TickIndex) const
@@ -20,6 +21,14 @@ int32 URogueyCombatManager::TryAttack(ARogueyPawn* Attacker, ARogueyPawn* Target
 
 	Target->CurrentHP = FMath::Max(0, Target->CurrentHP - Damage);
 	Attacker->LastAttackTick = TickIndex;
+
+	if (Damage > 0)
+	{
+		FRogueyStat& MeleeStat = Attacker->StatPage.Get(ERogueyStatType::Melee);
+		if (MeleeStat.AddXP(static_cast<int64>(Damage) * 4))
+			Attacker->ShowSpeechBubble(FString::Printf(TEXT("Melee level %d!"), MeleeStat.BaseLevel));
+	}
+
 	return Damage;
 }
 

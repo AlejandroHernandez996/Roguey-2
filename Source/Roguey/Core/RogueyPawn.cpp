@@ -1,6 +1,7 @@
 #include "RogueyPawn.h"
 
 #include "Net/UnrealNetwork.h"
+#include "Roguey/Items/RogueyItemRegistry.h"
 #include "Components/CapsuleComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -22,6 +23,9 @@ ARogueyPawn::ARogueyPawn()
 	GetCharacterMovement()->SetComponentTickEnabled(false);
 	GetCharacterMovement()->GravityScale = 0.f;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
+	// CMC smooths simulated proxies toward the server's raw actor position, which conflicts with
+	// our TrueTileQueue interpolation. Disable it so only our Tick-driven SetActorLocation runs.
+	GetCharacterMovement()->NetworkSmoothingMode = ENetworkSmoothingMode::Disabled;
 
 	// We own position through TilePosition + OnRep_TilePosition — suppress UE's raw position replication
 	SetReplicateMovement(false);
@@ -37,6 +41,8 @@ void ARogueyPawn::BeginPlay()
 	StatPage.InitDefaults();
 	CurrentHP = StatPage.GetCurrentLevel(ERogueyStatType::Hitpoints);
 	MaxHP = CurrentHP;
+
+	Inventory.Init(FRogueyItem(), 28);
 
 	if (HasAuthority())
 	{
@@ -74,9 +80,27 @@ void ARogueyPawn::Tick(float DeltaSeconds)
 
 	if (TrueTileQueue.IsEmpty()) return;
 
-	FVector Target  = TrueTileQueue[0];
-	FVector Current = GetActorLocation();
+	if (!CachedTerrain)
+	{
+		for (TActorIterator<ARogueyTerrain> It(GetWorld()); It; ++It)
+		{
+			CachedTerrain = *It;
+			break;
+		}
+	}
 
+	// Stall until terrain height data is available so we never snap to Z=0.
+	if (CachedTerrain && !CachedTerrain->IsHeightGridReady()) return;
+
+	FIntVector2 TargetTile = TrueTileQueue[0];
+	float SurfaceZ = CachedTerrain ? CachedTerrain->GetTileHeight(TargetTile) : 0.f;
+	FVector Target(
+		TargetTile.X * RogueyConstants::TileSize + RogueyConstants::TileSize * TileExtent.X * 0.5f,
+		TargetTile.Y * RogueyConstants::TileSize + RogueyConstants::TileSize * TileExtent.Y * 0.5f,
+		SurfaceZ + RogueyConstants::PawnHoverHeight
+	);
+
+	FVector Current = GetActorLocation();
 	float Dist2D = FVector::Dist2D(Current, Target);
 
 	if (Dist2D <= 1.f)
@@ -128,22 +152,7 @@ void ARogueyPawn::OnRep_TilePosition()
 
 void ARogueyPawn::EnqueueVisualPosition(FIntVector2 Tile)
 {
-	if (!CachedTerrain)
-	{
-		for (TActorIterator<ARogueyTerrain> It(GetWorld()); It; ++It)
-		{
-			CachedTerrain = *It;
-			break;
-		}
-	}
-
-	float SurfaceZ = CachedTerrain ? CachedTerrain->GetTileHeight(Tile) : 0.f;
-	FVector WorldPos = FVector(
-		Tile.X * RogueyConstants::TileSize + RogueyConstants::TileSize * TileExtent.X * 0.5f,
-		Tile.Y * RogueyConstants::TileSize + RogueyConstants::TileSize * TileExtent.Y * 0.5f,
-		SurfaceZ + RogueyConstants::PawnHoverHeight
-	);
-	TrueTileQueue.Add(WorldPos);
+	TrueTileQueue.Add(Tile);
 }
 
 void ARogueyPawn::Server_RequestMoveTo_Implementation(FIntPoint InTargetTile, bool bRunning)
@@ -204,6 +213,57 @@ void ARogueyPawn::OnRep_HitSplat()
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
 		if (ARogueyHUD* HUD = Cast<ARogueyHUD>(PC->GetHUD()))
 			HUD->AddHitSplat(GetActorLocation() + FVector(0.f, 0.f, 220.f), LastHitDamage);
+}
+
+void ARogueyPawn::Server_EquipFromInventory_Implementation(int32 InvSlotIndex)
+{
+	if (!Inventory.IsValidIndex(InvSlotIndex) || Inventory[InvSlotIndex].IsEmpty()) return;
+
+	URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+	if (!Registry) return;
+
+	const FRogueyItemRow* Row = Registry->FindItem(Inventory[InvSlotIndex].ItemId);
+	if (!Row || !Row->IsEquippable()) return;
+
+	EEquipmentSlot Slot = Row->GetEquipSlot();
+
+	// Swap: previously equipped item goes back into this inventory slot
+	FRogueyItem ItemToEquip = Inventory[InvSlotIndex];
+	Inventory[InvSlotIndex] = Equipment.Contains(Slot) ? Equipment[Slot] : FRogueyItem();
+	Equipment.Add(Slot, ItemToEquip);
+
+	RecalcEquipmentBonuses();
+}
+
+void ARogueyPawn::Server_UnequipToInventory_Implementation(EEquipmentSlot Slot)
+{
+	if (!Equipment.Contains(Slot) || Equipment[Slot].IsEmpty()) return;
+
+	// Find first empty inventory slot
+	int32 EmptySlot = Inventory.IndexOfByPredicate([](const FRogueyItem& I){ return I.IsEmpty(); });
+	if (EmptySlot == INDEX_NONE) return; // inventory full
+
+	Inventory[EmptySlot] = Equipment[Slot];
+	Equipment.Remove(Slot);
+	RecalcEquipmentBonuses();
+}
+
+void ARogueyPawn::RecalcEquipmentBonuses()
+{
+	EquipmentBonuses = FRogueyEquipmentBonuses();
+
+	URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+	if (!Registry) return;
+
+	for (const auto& Pair : Equipment)
+	{
+		const FRogueyItemRow* Row = Registry->FindItem(Pair.Value.ItemId);
+		if (!Row) continue;
+
+		EquipmentBonuses.MeleeAttack   += Row->MeleeAttackBonus;
+		EquipmentBonuses.MeleeStrength += Row->MeleeStrengthBonus;
+		EquipmentBonuses.MeleeDefence  += Row->MeleeDefenceBonus;
+	}
 }
 
 void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

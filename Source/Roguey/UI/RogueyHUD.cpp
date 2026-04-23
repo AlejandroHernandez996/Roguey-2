@@ -5,8 +5,12 @@
 #include "GameFramework/PlayerController.h"
 #include "Roguey/Core/RogueyPawn.h"
 #include "Roguey/Core/RogueyPawnState.h"
+#include "Roguey/Items/RogueyEquipmentSlot.h"
+#include "Roguey/Items/RogueyItemRegistry.h"
 #include "Roguey/Npcs/RogueyNpc.h"
 #include "Roguey/RogueyGameMode.h"
+#include "Roguey/Skills/RogueyStat.h"
+#include "Roguey/Skills/RogueyStatType.h"
 
 void ARogueyHUD::DrawHUD()
 {
@@ -19,6 +23,7 @@ void ARogueyHUD::DrawHUD()
 	DrawHealthBars();
 	DrawPlayerHP();
 	DrawTargetPanel();
+	if (bDevPanelOpen) DrawDevPanel();
 	DrawContextMenu(); // always last — sits on top of everything
 
 #if ENABLE_DRAW_DEBUG
@@ -343,5 +348,349 @@ void ARogueyHUD::DrawHealthBars()
 
 		DrawRect(FLinearColor::Red,   Left, Top, HealthBarWidth,          HealthBarHeight);
 		DrawRect(FLinearColor::Green, Left, Top, HealthBarWidth * HpFrac, HealthBarHeight);
+	}
+}
+
+// ── Dev panel ─────────────────────────────────────────────────────────────────
+
+void ARogueyHUD::SetActiveTab(int32 Index)
+{
+	ActiveTab = FMath::Clamp(Index, 0, 2);
+	DevSlotRects.Empty();
+	DevEquipSlotOrder.Empty();
+}
+
+bool ARogueyHUD::IsMouseOverDevPanel(float MX, float MY) const
+{
+	return bDevPanelOpen
+		&& MX >= DevPanelX && MX <= DevPanelX + DevPanelW
+		&& MY >= DevPanelY && MY <= DevPanelY + DevPanelH;
+}
+
+FDevPanelHit ARogueyHUD::HitTestDevPanel(float MX, float MY) const
+{
+	FDevPanelHit Result;
+	if (!IsMouseOverDevPanel(MX, MY)) return Result;
+
+	// Tab bar
+	for (int32 i = 0; i < 3; i++)
+	{
+		const FHitRect& R = DevTabRects[i];
+		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
+		{
+			Result.Type  = FDevPanelHit::EType::Tab;
+			Result.Index = i;
+			return Result;
+		}
+	}
+
+	// Slots
+	for (int32 i = 0; i < DevSlotRects.Num(); i++)
+	{
+		const FHitRect& R = DevSlotRects[i];
+		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
+		{
+			if (ActiveTab == 1) // equipment
+			{
+				Result.Type      = FDevPanelHit::EType::EquipSlot;
+				Result.EquipSlot = DevEquipSlotOrder.IsValidIndex(i) ? DevEquipSlotOrder[i] : EEquipmentSlot::Head;
+			}
+			else // inventory
+			{
+				Result.Type  = FDevPanelHit::EType::InvSlot;
+				Result.Index = i;
+			}
+			return Result;
+		}
+	}
+
+	return Result;
+}
+
+void ARogueyHUD::DrawDevPanel()
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC) return;
+	ARogueyPawn* Pawn = Cast<ARogueyPawn>(PC->GetPawn());
+	if (!Pawn) return;
+
+	UFont* F = Font();
+
+	const FLinearColor BgColor(0.04f, 0.04f, 0.04f, 0.92f);
+	const FLinearColor BorderColor(0.55f, 0.48f, 0.22f, 1.f);
+	const FLinearColor TabActiveBg(0.14f, 0.12f, 0.05f, 1.f);
+	const FLinearColor TabActiveTxt(0.9f, 0.75f, 0.2f, 1.f);
+	const FLinearColor TabInactiveTxt(0.5f, 0.5f, 0.5f, 1.f);
+
+	static constexpr int32 NumEquipSlots = 11;
+	static constexpr int32 InvRows       = 7;
+	static constexpr float EquipRowH     = 24.f;
+
+	// Fixed height — tallest tab (Inventory) so the panel never resizes on tab switch
+	static constexpr float ContentH =
+		DevPadY + InvRows * (DevSlotSize + DevSlotGap) - DevSlotGap + DevPadY;
+
+	const float TotalH = DevTabH + ContentH;
+	const float PX     = Canvas->SizeX - DevPanelW - 10.f;
+	const float PY     = FMath::Max(10.f, (Canvas->SizeY - TotalH) * 0.5f);
+
+	DevPanelX = PX;
+	DevPanelY = PY;
+	DevPanelH = TotalH;
+
+	DrawRect(BgColor,      PX,             PY,          DevPanelW, TotalH);
+	DrawRect(BorderColor,  PX,             PY,          DevPanelW, 1.f);
+	DrawRect(BorderColor,  PX,             PY + TotalH, DevPanelW, 1.f);
+	DrawRect(BorderColor,  PX,             PY,          1.f,       TotalH);
+	DrawRect(BorderColor,  PX + DevPanelW, PY,          1.f,       TotalH + 1.f);
+
+	static const TCHAR* TabLabels[] = { TEXT("Stats"), TEXT("Equipment"), TEXT("Inventory") };
+	const float TabW = DevPanelW / 3.f;
+	for (int32 i = 0; i < 3; i++)
+	{
+		const float TX      = PX + i * TabW;
+		const bool  bActive = (ActiveTab == i);
+
+		if (bActive)
+			DrawRect(TabActiveBg, TX + 1.f, PY + 1.f, TabW - 1.f, DevTabH - 1.f);
+
+		float TW, TH;
+		GetTextSize(TabLabels[i], TW, TH, F, 0.8f);
+		DrawText(TabLabels[i],
+		         bActive ? TabActiveTxt : TabInactiveTxt,
+		         TX + (TabW - TW) * 0.5f, PY + (DevTabH - TH) * 0.5f, F, 0.8f);
+
+		DevTabRects[i] = { TX, PY, TabW, DevTabH };
+	}
+	DrawRect(BorderColor, PX, PY + DevTabH, DevPanelW, 1.f);
+
+	DevSlotRects.Reset();
+	DevEquipSlotOrder.Reset();
+
+	const float ContentY = PY + DevTabH + 1.f;
+	switch (ActiveTab)
+	{
+		case 0: DrawDevTab_Stats(PX, ContentY, DevPanelW, F);     break;
+		case 1: DrawDevTab_Equipment(PX, ContentY, DevPanelW, F); break;
+		case 2: DrawDevTab_Inventory(PX, ContentY, DevPanelW, F); break;
+		default: break;
+	}
+}
+
+void ARogueyHUD::DrawDevTab_Stats(float PX, float PY, float PW, UFont* F)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	ARogueyPawn* Pawn = Cast<ARogueyPawn>(PC ? PC->GetPawn() : nullptr);
+	if (!Pawn) return;
+
+	static const ERogueyStatType StatOrder[] = {
+		ERogueyStatType::Hitpoints, ERogueyStatType::Melee,     ERogueyStatType::Defence,
+		ERogueyStatType::Ranged,    ERogueyStatType::Magic,      ERogueyStatType::Prayer,
+		ERogueyStatType::Woodcutting, ERogueyStatType::Mining
+	};
+	static const TCHAR* StatNames[] = {
+		TEXT("Hitpoints"), TEXT("Melee"),   TEXT("Defence"),
+		TEXT("Ranged"),    TEXT("Magic"),   TEXT("Prayer"),
+		TEXT("Woodcutting"), TEXT("Mining")
+	};
+	static constexpr int32 NumStats = 8;
+	static constexpr float BarW     = 50.f;
+	static constexpr float BarH     = 8.f;
+
+	const FLinearColor LabelColor(0.7f, 0.7f, 0.7f, 1.f);
+	const FLinearColor XpBarBg(0.1f, 0.1f, 0.15f, 1.f);
+	const FLinearColor XpBarFill(0.2f, 0.6f, 0.9f, 1.f);
+
+	const float BarX   = PX + PW - BarW - DevPadX;
+	const float LevelX = BarX - 24.f;
+	float       CurY   = PY + DevPadY;
+
+	for (int32 i = 0; i < NumStats; i++)
+	{
+		const FRogueyStat* Stat  = Pawn->StatPage.Find(StatOrder[i]);
+		const int32        Level = Stat ? Stat->BaseLevel : 1;
+
+		DrawText(StatNames[i], LabelColor, PX + DevPadX, CurY, F, 1.0f);
+		DrawText(FString::FromInt(Level), FLinearColor::White, LevelX, CurY, F, 1.0f);
+
+		if (Stat && Level < FRogueyStat::MaxLevel)
+		{
+			const int64 XpNeeded = Stat->XPForLevel(Level + 1) - Stat->XPForLevel(Level);
+			const float Frac     = XpNeeded > 0
+				? FMath::Clamp((float)Stat->CurrentXP / (float)XpNeeded, 0.f, 1.f)
+				: 1.f;
+			const float BarTop = CurY + (DevRowH - BarH) * 0.5f;
+			DrawRect(XpBarBg,   BarX, BarTop, BarW,         BarH);
+			DrawRect(XpBarFill, BarX, BarTop, BarW * Frac,  BarH);
+		}
+
+		CurY += DevRowH;
+	}
+}
+
+void ARogueyHUD::DrawDevTab_Equipment(float PX, float PY, float PW, UFont* F)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	ARogueyPawn* Pawn = Cast<ARogueyPawn>(PC ? PC->GetPawn() : nullptr);
+	if (!Pawn) return;
+
+	URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+
+	// Body-shape grid: 3 cols × 6 rows, only occupied cells are drawn
+	struct FSlotPos { int32 Col, Row; EEquipmentSlot Slot; const TCHAR* Name; };
+	static const FSlotPos Layout[] = {
+		{ 1, 0, EEquipmentSlot::Head,   TEXT("Head")   },
+		{ 0, 1, EEquipmentSlot::Cape,   TEXT("Cape")   },
+		{ 1, 1, EEquipmentSlot::Neck,   TEXT("Neck")   },
+		{ 2, 1, EEquipmentSlot::Ammo,   TEXT("Ammo")   },
+		{ 0, 2, EEquipmentSlot::Weapon, TEXT("Weapon") },
+		{ 1, 2, EEquipmentSlot::Body,   TEXT("Body")   },
+		{ 2, 2, EEquipmentSlot::Shield, TEXT("Shield") },
+		{ 1, 3, EEquipmentSlot::Legs,   TEXT("Legs")   },
+		{ 0, 4, EEquipmentSlot::Hands,  TEXT("Hands")  },
+		{ 1, 4, EEquipmentSlot::Feet,   TEXT("Feet")   },
+		{ 2, 4, EEquipmentSlot::Ring,   TEXT("Ring")   },
+	};
+	static constexpr int32 NumSlots = UE_ARRAY_COUNT(Layout);
+	static constexpr int32 GridCols = 3;
+
+	const float GridW  = GridCols * DevSlotSize + (GridCols - 1) * DevSlotGap;
+	const float StartX = PX + (PW - GridW) * 0.5f;
+	const float StartY = PY + DevPadY;
+
+	const FLinearColor BorderColor(0.55f, 0.48f, 0.22f, 1.f);
+	const FLinearColor ItemColor(1.f, 0.85f, 0.1f, 1.f);
+	const FLinearColor LabelColor(0.45f, 0.45f, 0.45f, 1.f);
+	const FLinearColor LineColor(0.45f, 0.40f, 0.30f, 1.f);
+
+	// Connector lines drawn before slots so slot borders sit on top
+	struct FConn { int32 C0, R0, C1, R1; };
+	static const FConn Connections[] = {
+		{ 1, 0, 1, 1 }, // Head   → Neck
+		{ 0, 1, 1, 1 }, // Cape   → Neck
+		{ 1, 1, 2, 1 }, // Neck   → Ammo
+		{ 1, 1, 1, 2 }, // Neck   → Body
+		{ 0, 2, 1, 2 }, // Weapon → Body
+		{ 1, 2, 2, 2 }, // Body   → Shield
+		{ 1, 2, 1, 3 }, // Body   → Legs
+		{ 1, 3, 1, 4 }, // Legs   → Ring
+	};
+	for (const FConn& Conn : Connections)
+	{
+		if (Conn.C0 == Conn.C1) // vertical
+		{
+			const float CX  = StartX + Conn.C0 * (DevSlotSize + DevSlotGap) + DevSlotSize * 0.5f;
+			const float LY0 = StartY + Conn.R0 * (DevSlotSize + DevSlotGap) + DevSlotSize;
+			const float LY1 = StartY + Conn.R1 * (DevSlotSize + DevSlotGap);
+			DrawRect(LineColor, CX, LY0, 1.f, LY1 - LY0);
+		}
+		else // horizontal
+		{
+			const float CY  = StartY + Conn.R0 * (DevSlotSize + DevSlotGap) + DevSlotSize * 0.5f;
+			const float LX0 = StartX + Conn.C0 * (DevSlotSize + DevSlotGap) + DevSlotSize;
+			const float LX1 = StartX + Conn.C1 * (DevSlotSize + DevSlotGap);
+			DrawRect(LineColor, LX0, CY, LX1 - LX0, 1.f);
+		}
+	}
+
+	DevSlotRects.Reserve(NumSlots);
+	DevEquipSlotOrder.Reserve(NumSlots);
+
+	for (int32 i = 0; i < NumSlots; i++)
+	{
+		const FSlotPos&    L       = Layout[i];
+		const float        SX      = StartX + L.Col * (DevSlotSize + DevSlotGap);
+		const float        SY      = StartY + L.Row * (DevSlotSize + DevSlotGap);
+		const FRogueyItem* Item    = Pawn->Equipment.Find(L.Slot);
+		const bool         bHasItem = Item && !Item->IsEmpty();
+
+		const FLinearColor SlotBg = bHasItem
+			? FLinearColor(0.12f, 0.12f, 0.05f, 1.f)
+			: FLinearColor(0.08f, 0.08f, 0.1f,  1.f);
+
+		DrawRect(SlotBg,       SX,               SY,               DevSlotSize, DevSlotSize);
+		DrawRect(BorderColor,  SX,               SY,               DevSlotSize, 1.f);
+		DrawRect(BorderColor,  SX,               SY + DevSlotSize, DevSlotSize, 1.f);
+		DrawRect(BorderColor,  SX,               SY,               1.f,         DevSlotSize);
+		DrawRect(BorderColor,  SX + DevSlotSize, SY,               1.f,         DevSlotSize + 1.f);
+
+		if (bHasItem)
+		{
+			const FRogueyItemRow* Row = Registry ? Registry->FindItem(Item->ItemId) : nullptr;
+			FString Short = Row ? Row->DisplayName.Left(4) : Item->ItemId.ToString().Left(4);
+			float TW, TH;
+			GetTextSize(Short, TW, TH, F, 0.8f);
+			DrawText(Short, ItemColor,
+			         SX + (DevSlotSize - TW) * 0.5f, SY + (DevSlotSize - TH) * 0.5f, F, 0.8f);
+		}
+		else
+		{
+			float TW, TH;
+			GetTextSize(L.Name, TW, TH, F, 0.7f);
+			DrawText(L.Name, LabelColor,
+			         SX + (DevSlotSize - TW) * 0.5f, SY + (DevSlotSize - TH) * 0.5f, F, 0.7f);
+		}
+
+		DevSlotRects.Add({ SX, SY, DevSlotSize, DevSlotSize });
+		DevEquipSlotOrder.Add(L.Slot);
+	}
+}
+
+void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	ARogueyPawn* Pawn = Cast<ARogueyPawn>(PC ? PC->GetPawn() : nullptr);
+	if (!Pawn) return;
+
+	URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+
+	static constexpr int32 InvCols = 4;
+	static constexpr int32 InvRows = 7;
+
+	const float GridW  = InvCols * DevSlotSize + (InvCols - 1) * DevSlotGap;
+	const float StartX = PX + (PW - GridW) * 0.5f;
+	const float StartY = PY + DevPadY;
+
+	const FLinearColor BorderColor(0.55f, 0.48f, 0.22f, 1.f);
+	const FLinearColor ItemColor(1.f, 0.85f, 0.1f, 1.f);
+	const FLinearColor QtyColor(0.f, 1.f, 0.f, 1.f);
+
+	DevSlotRects.Reserve(InvCols * InvRows);
+
+	for (int32 Row = 0; Row < InvRows; Row++)
+	{
+		for (int32 Col = 0; Col < InvCols; Col++)
+		{
+			const int32 Idx = Row * InvCols + Col;
+			const float SX  = StartX + Col * (DevSlotSize + DevSlotGap);
+			const float SY  = StartY + Row * (DevSlotSize + DevSlotGap);
+
+			const FRogueyItem& Item = Pawn->Inventory.IsValidIndex(Idx) ? Pawn->Inventory[Idx] : FRogueyItem();
+
+			const FLinearColor SlotBg = Item.IsEmpty()
+				? FLinearColor(0.08f, 0.08f, 0.1f,  1.f)
+				: FLinearColor(0.12f, 0.12f, 0.05f, 1.f);
+
+			DrawRect(SlotBg,       SX,               SY,               DevSlotSize, DevSlotSize);
+			DrawRect(BorderColor,  SX,               SY,               DevSlotSize, 1.f);
+			DrawRect(BorderColor,  SX,               SY + DevSlotSize, DevSlotSize, 1.f);
+			DrawRect(BorderColor,  SX,               SY,               1.f,         DevSlotSize);
+			DrawRect(BorderColor,  SX + DevSlotSize, SY,               1.f,         DevSlotSize + 1.f);
+
+			if (!Item.IsEmpty())
+			{
+				const FRogueyItemRow* ItemRow = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
+				FString Short = ItemRow ? ItemRow->DisplayName.Left(4) : Item.ItemId.ToString().Left(4);
+				float TW, TH;
+				GetTextSize(Short, TW, TH, F, 0.8f);
+				DrawText(Short, ItemColor,
+				         SX + (DevSlotSize - TW) * 0.5f, SY + (DevSlotSize - TH) * 0.5f, F, 0.8f);
+
+				if (Item.Quantity > 1)
+					DrawText(FString::FromInt(Item.Quantity), QtyColor, SX + 2.f, SY + 2.f, F, 0.75f);
+			}
+
+			DevSlotRects.Add({ SX, SY, DevSlotSize, DevSlotSize });
+		}
 	}
 }

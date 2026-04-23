@@ -19,7 +19,8 @@ public class Roguey : ModuleRules
 			"OnlineSubsystemUtils",
 			"UMG",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"DeveloperSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
