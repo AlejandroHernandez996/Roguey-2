@@ -3,8 +3,6 @@
 #include "CoreMinimal.h"
 #include "RogueyAction.generated.h"
 
-class ARogueyPawn;
-
 UENUM(BlueprintType)
 enum class EActionType : uint8
 {
@@ -12,6 +10,7 @@ enum class EActionType : uint8
 	Move,
 	Attack,
 	AttackMove,
+	TakeLoot,  // walk to ground item tile then pick up
 };
 
 // Describes a single action exposed by an interactable object.
@@ -32,7 +31,7 @@ struct FRogueyActionDef
 struct FRogueyPendingAction
 {
 	EActionType Type = EActionType::None;
-	TWeakObjectPtr<ARogueyPawn> TargetActor;
+	TWeakObjectPtr<AActor> TargetActor;  // ARogueyPawn for combat, ARogueyLootDrop for TakeLoot
 	FIntPoint TargetTile = FIntPoint(-1, -1);
 	FIntVector2 LastKnownTargetTile = FIntVector2(-1, -1);
 

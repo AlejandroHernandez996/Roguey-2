@@ -15,10 +15,18 @@ public:
 	URogueyItemSettings()
 	{
 		CategoryName = TEXT("Roguey");
-		SectionName  = TEXT("Items");
+		SectionName  = TEXT("Data Tables");
 	}
 
 	// Assign your DataTable asset(s) here. Row type must be FRogueyItemRow.
 	UPROPERTY(Config, EditAnywhere, Category = "Tables")
 	TArray<TSoftObjectPtr<UDataTable>> ItemTables;
+
+	// Row type must be FRogueyNpcRow. Row name = NpcTypeId.
+	UPROPERTY(Config, EditAnywhere, Category = "Tables")
+	TSoftObjectPtr<UDataTable> NpcTable;
+
+	// Row type must be FRogueyLootTableRow. Row names: "{npcTypeId}_{suffix}".
+	UPROPERTY(Config, EditAnywhere, Category = "Tables")
+	TSoftObjectPtr<UDataTable> LootTable;
 };

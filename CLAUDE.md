@@ -62,6 +62,7 @@ Three styles: Melee, Ranged, Magic — one stat each (not Attack+Strength).
 - [Combat](Docs/Systems/Combat.md) — TryAttack, OSRS formulas, cooldowns, XP
 - [Grid](Docs/Systems/Grid.md) — tile registration, occupancy, footprints, passability queries
 - [HUD](Docs/Systems/HUD.md) — canvas draw loop, hit-testing pattern, dev panel, context menu
+- [Items](Docs/Systems/Items.md) — DataTable/registry, item types, inventory/equipment, consume slots, loot drops
 
 **Rule: whenever you change a system, update the corresponding doc in the same commit.**
 If the change is significant enough to break a reader's mental model, the doc update is not optional.

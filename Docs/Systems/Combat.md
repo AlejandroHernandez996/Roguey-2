@@ -20,6 +20,13 @@ On cooldown if: TickIndex - Attacker->LastAttackTick < Attacker->AttackCooldownT
 
 `AttackCooldownTicks = 4` by default (4 × 0.6s = 2.4s, equivalent to OSRS attack speed 4).
 
+Eating food adds to `AttackCooldownTicks` on the tick it is consumed (see Items doc):
+- Food3Tick: `+3 ticks`
+- FoodQuick: `+2 ticks`
+- Potion: `+0 ticks`
+
+This is additive with any existing cooldown, matching OSRS eat-while-attacking behaviour.
+
 ## Damage Formula (OSRS-derived)
 
 ### Max Hit

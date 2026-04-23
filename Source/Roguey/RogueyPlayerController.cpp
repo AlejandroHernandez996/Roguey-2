@@ -13,8 +13,13 @@
 #include "Core/RogueyConstants.h"
 #include "Grid/RogueyGridManager.h"
 #include "Items/RogueyItemRegistry.h"
+#include "Items/RogueyItemRow.h"
+#include "Items/RogueyItemType.h"
 #include "Terrain/RogueyTerrain.h"
 #include "UI/RogueyHUD.h"
+#include "Npcs/RogueyNpc.h"
+#include "Npcs/RogueyNpcRegistry.h"
+#include "Core/RogueyActionNames.h"
 
 ARogueyPlayerController::ARogueyPlayerController()
 {
@@ -26,6 +31,11 @@ ARogueyPlayerController::ARogueyPlayerController()
 void ARogueyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+	SetInputMode(InputMode);
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
@@ -64,6 +74,12 @@ void ARogueyPlayerController::SetupInputComponent()
 
 		if (CameraZoomAction)
 			EIC->BindAction(CameraZoomAction, ETriggerEvent::Triggered, this, &ARogueyPlayerController::OnCameraZoom);
+
+		if (PrimaryModifierAction)
+		{
+			EIC->BindAction(PrimaryModifierAction, ETriggerEvent::Started,   this, &ARogueyPlayerController::OnPrimaryModifierStarted);
+			EIC->BindAction(PrimaryModifierAction, ETriggerEvent::Completed, this, &ARogueyPlayerController::OnPrimaryModifierCompleted);
+		}
 
 		if (SecondaryModifierAction)
 		{
@@ -164,7 +180,72 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 
 	if (HUD)
 	{
-		if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
+		float MX = 0.f, MY = 0.f;
+		GetMousePosition(MX, MY);
+
+		if (HUD->IsContextMenuOpen())
+		{
+			int32 Idx = HUD->HitTestContextMenu(MX, MY);
+			FContextMenuEntry HovEntry;
+			if (Idx >= 0 && HUD->GetContextEntryCopy(Idx, HovEntry))
+			{
+				HUD->ActionPart = HovEntry.ActionText;
+				HUD->TargetPart = HovEntry.TargetText;
+			}
+			else
+			{
+				HUD->ActionPart = TEXT("");
+				HUD->TargetPart = TEXT("");
+			}
+		}
+		else if (HUD->bDevPanelOpen && HUD->IsMouseOverDevPanel(MX, MY))
+		{
+			// Dev panel hover — resolve action label from the hovered slot
+			FDevPanelHit PanelHit = HUD->HitTestDevPanel(MX, MY);
+			URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
+			HUD->ActionPart = TEXT("");
+			HUD->TargetPart = TEXT("");
+
+			if (PanelHit.Type == FDevPanelHit::EType::InvSlot && RogueyPawn
+			    && RogueyPawn->Inventory.IsValidIndex(PanelHit.Index)
+			    && !RogueyPawn->Inventory[PanelHit.Index].IsEmpty())
+			{
+				const FRogueyItem&    Item = RogueyPawn->Inventory[PanelHit.Index];
+				const FRogueyItemRow* Row  = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
+				HUD->TargetPart = Row ? Row->DisplayName : Item.ItemId.ToString();
+
+				if (bPrimaryModifierHeld)
+					HUD->ActionPart = RogueyActions::Drop.ToString();
+				else if (Row && (Row->Type == ERogueyItemType::Food3Tick || Row->Type == ERogueyItemType::FoodQuick))
+					HUD->ActionPart = RogueyActions::Eat.ToString();
+				else if (Row && Row->Type == ERogueyItemType::Potion)
+					HUD->ActionPart = RogueyActions::Drink.ToString();
+				else if (Row && Row->IsEquippable())
+					HUD->ActionPart = RogueyActions::Equip.ToString();
+				else
+					HUD->ActionPart = RogueyActions::Use.ToString();
+			}
+			else if (PanelHit.Type == FDevPanelHit::EType::EquipSlot && RogueyPawn)
+			{
+				const FRogueyItem* Item = RogueyPawn->Equipment.Find(PanelHit.EquipSlot);
+				if (Item && !Item->IsEmpty())
+				{
+					const FRogueyItemRow* Row = Registry ? Registry->FindItem(Item->ItemId) : nullptr;
+					HUD->ActionPart = RogueyActions::Remove.ToString();
+					HUD->TargetPart = Row ? Row->DisplayName : Item->ItemId.ToString();
+				}
+			}
+			else if (PanelHit.Type == FDevPanelHit::EType::NpcSpawn
+			         && HUD->DevSpawnNpcTypes.IsValidIndex(PanelHit.Index))
+			{
+				URogueyNpcRegistry* NpcReg = URogueyNpcRegistry::Get(this);
+				FName TypeId = HUD->DevSpawnNpcTypes[PanelHit.Index];
+				const FRogueyNpcRow* Row = NpcReg ? NpcReg->FindNpc(TypeId) : nullptr;
+				HUD->ActionPart = RogueyActions::Spawn.ToString();
+				HUD->TargetPart = Row ? Row->NpcName : TypeId.ToString();
+			}
+		}
+		else if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
 		{
 			DrawTile(WorldToTile(Hit.Location), FColor(0, 255, 80));
 
@@ -178,7 +259,7 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 			}
 			else
 			{
-				HUD->ActionPart = TEXT("Walk here");
+				HUD->ActionPart = RogueyActions::WalkHere.ToString();
 				HUD->TargetPart = TEXT("");
 			}
 		}
@@ -283,6 +364,16 @@ void ARogueyPlayerController::OnCameraRotateCompleted(const FInputActionValue& V
 	bShowMouseCursor = true;
 }
 
+void ARogueyPlayerController::OnPrimaryModifierStarted(const FInputActionValue& Value)
+{
+	bPrimaryModifierHeld = true;
+}
+
+void ARogueyPlayerController::OnPrimaryModifierCompleted(const FInputActionValue& Value)
+{
+	bPrimaryModifierHeld = false;
+}
+
 void ARogueyPlayerController::OnSecondaryModifierStarted(const FInputActionValue& Value)
 {
 	bSecondaryModifierHeld = true;
@@ -313,7 +404,8 @@ void ARogueyPlayerController::OnTabInv(const FInputActionValue& Value)
 
 void ARogueyPlayerController::OnClickCompleted(const FInputActionValue& Value)
 {
-	bMenuWasOpenOnPress = false;
+	bMenuWasOpenOnPress   = false;
+	bDevPanelClickHandled = false;
 }
 
 void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
@@ -336,13 +428,15 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 	}
 	if (bMenuWasOpenOnPress) return; // held after dismissing menu — don't fire movement
 
-	// Dev panel left-click interception
+	// Dev panel left-click interception — fire once on press, not every held frame
+	if (bDevPanelClickHandled) return;
 	if (ClickHUD && ClickHUD->bDevPanelOpen)
 	{
 		float MX, MY;
 		GetMousePosition(MX, MY);
 		if (ClickHUD->IsMouseOverDevPanel(MX, MY))
 		{
+			bDevPanelClickHandled = true;
 			HandleDevPanelLeftClick(ClickHUD->HitTestDevPanel(MX, MY));
 			return;
 		}
@@ -383,8 +477,12 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 
 static FLinearColor ActionColor(FName ActionId)
 {
-	if (ActionId == "Attack")  return FLinearColor(0.85f, 0.15f, 0.15f);
-	if (ActionId == "Examine") return FLinearColor(0.6f,  0.9f,  0.6f);
+	if (ActionId == RogueyActions::Attack)  return FLinearColor(0.85f, 0.15f, 0.15f);
+	if (ActionId == RogueyActions::Examine) return FLinearColor(0.6f,  0.9f,  0.6f);
+	if (ActionId == RogueyActions::Take)    return FLinearColor(1.0f,  0.85f, 0.1f);
+	if (ActionId == RogueyActions::Eat)     return FLinearColor(0.5f,  0.9f,  0.5f);
+	if (ActionId == RogueyActions::Drink)   return FLinearColor(0.4f,  0.7f,  1.0f);
+	if (ActionId == RogueyActions::Drop)    return FLinearColor(1.0f,  0.5f,  0.1f);
 	return FLinearColor::White;
 }
 
@@ -428,7 +526,7 @@ void ARogueyPlayerController::HandleRightClick()
 	// Walk here
 	{
 		FContextMenuEntry E;
-		E.ActionText = TEXT("Move here");
+		E.ActionText = RogueyActions::WalkHere.ToString();
 		E.ActionColor = FLinearColor::White;
 		E.bIsWalk    = true;
 		E.TargetTile = FIntPoint(
@@ -466,11 +564,32 @@ void ARogueyPlayerController::HandleDevPanelLeftClick(const FDevPanelHit& Hit)
 	if (Hit.Type == FDevPanelHit::EType::InvSlot)
 	{
 		if (RogueyPawn->Inventory.IsValidIndex(Hit.Index) && !RogueyPawn->Inventory[Hit.Index].IsEmpty())
-			RogueyPawn->Server_EquipFromInventory(Hit.Index);
+		{
+			if (bPrimaryModifierHeld)
+			{
+				RogueyPawn->Server_DropFromInventory(Hit.Index);
+			}
+			else
+			{
+				URogueyItemRegistry* Reg = URogueyItemRegistry::Get(this);
+				const FRogueyItemRow* Row = Reg ? Reg->FindItem(RogueyPawn->Inventory[Hit.Index].ItemId) : nullptr;
+				if (Row && (Row->Type == ERogueyItemType::Food3Tick
+				         || Row->Type == ERogueyItemType::FoodQuick
+				         || Row->Type == ERogueyItemType::Potion))
+					RogueyPawn->Server_ConsumeFromInventory(Hit.Index);
+				else
+					RogueyPawn->Server_EquipFromInventory(Hit.Index);
+			}
+		}
 	}
 	else if (Hit.Type == FDevPanelHit::EType::EquipSlot)
 	{
 		RogueyPawn->Server_UnequipToInventory(Hit.EquipSlot);
+	}
+	else if (Hit.Type == FDevPanelHit::EType::NpcSpawn)
+	{
+		if (HUD && HUD->DevSpawnNpcTypes.IsValidIndex(Hit.Index))
+			Server_DevSpawnNpc(HUD->DevSpawnNpcTypes[Hit.Index]);
 	}
 }
 
@@ -490,23 +609,71 @@ void ARogueyPlayerController::HandleDevPanelRightClick(const FDevPanelHit& Hit, 
 		const FRogueyItemRow* Row  = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
 		FString TargetName = Row ? Row->DisplayName : Item.ItemId.ToString();
 
+		const bool bHasSpecificUse = Row && (Row->IsEquippable()
+			|| Row->Type == ERogueyItemType::Food3Tick
+			|| Row->Type == ERogueyItemType::FoodQuick
+			|| Row->Type == ERogueyItemType::Potion);
+
+		if (!bHasSpecificUse)
+		{
+			FContextMenuEntry E;
+			E.ActionText   = RogueyActions::Use.ToString();
+			E.TargetText   = TargetName;
+			E.ActionColor  = FLinearColor::White;
+			E.InvSlotIndex = Hit.Index;
+			E.ActionId     = RogueyActions::Use;
+			Entries.Add(E);
+		}
+
 		if (Row && Row->IsEquippable())
 		{
 			FContextMenuEntry E;
-			E.ActionText   = TEXT("Equip");
+			E.ActionText   = RogueyActions::Equip.ToString();
 			E.TargetText   = TargetName;
 			E.ActionColor  = FLinearColor::White;
 			E.InvSlotIndex = Hit.Index;
 			Entries.Add(E);
 		}
 
+		if (Row && (Row->Type == ERogueyItemType::Food3Tick || Row->Type == ERogueyItemType::FoodQuick))
 		{
 			FContextMenuEntry E;
-			E.ActionText   = TEXT("Examine");
+			E.ActionText   = RogueyActions::Eat.ToString();
 			E.TargetText   = TargetName;
-			E.ActionColor  = FLinearColor(0.6f, 0.9f, 0.6f);
+			E.ActionColor  = ActionColor(RogueyActions::Eat);
 			E.InvSlotIndex = Hit.Index;
-			E.ActionId     = "Examine";
+			E.ActionId     = RogueyActions::Eat;
+			Entries.Add(E);
+		}
+
+		if (Row && Row->Type == ERogueyItemType::Potion && Item.Quantity > 0)
+		{
+			FContextMenuEntry E;
+			E.ActionText   = FString::Printf(TEXT("Drink (%d)"), Item.Quantity);
+			E.TargetText   = TargetName;
+			E.ActionColor  = ActionColor(RogueyActions::Drink);
+			E.InvSlotIndex = Hit.Index;
+			E.ActionId     = RogueyActions::Drink;
+			Entries.Add(E);
+		}
+
+		{
+			FContextMenuEntry E;
+			E.ActionText   = RogueyActions::Examine.ToString();
+			E.TargetText   = TargetName;
+			E.ActionColor  = ActionColor(RogueyActions::Examine);
+			E.InvSlotIndex = Hit.Index;
+			E.ActionId     = RogueyActions::Examine;
+			Entries.Add(E);
+		}
+
+		{
+			FContextMenuEntry E;
+			E.ActionText   = RogueyActions::Drop.ToString();
+			E.TargetText   = TargetName;
+			E.ActionColor  = ActionColor(RogueyActions::Drop);
+			E.InvSlotIndex = Hit.Index;
+			E.ActionId     = RogueyActions::Drop;
 			Entries.Add(E);
 		}
 	}
@@ -520,7 +687,7 @@ void ARogueyPlayerController::HandleDevPanelRightClick(const FDevPanelHit& Hit, 
 
 		{
 			FContextMenuEntry E;
-			E.ActionText       = TEXT("Remove");
+			E.ActionText       = RogueyActions::Remove.ToString();
 			E.TargetText       = TargetName;
 			E.ActionColor      = FLinearColor::White;
 			E.bIsEquipSlotAction = true;
@@ -530,12 +697,12 @@ void ARogueyPlayerController::HandleDevPanelRightClick(const FDevPanelHit& Hit, 
 
 		{
 			FContextMenuEntry E;
-			E.ActionText       = TEXT("Examine");
+			E.ActionText       = RogueyActions::Examine.ToString();
 			E.TargetText       = TargetName;
-			E.ActionColor      = FLinearColor(0.6f, 0.9f, 0.6f);
+			E.ActionColor      = ActionColor(RogueyActions::Examine);
 			E.bIsEquipSlotAction = true;
 			E.EquipSlotTarget  = Hit.EquipSlot;
-			E.ActionId         = "Examine";
+			E.ActionId         = RogueyActions::Examine;
 			Entries.Add(E);
 		}
 	}
@@ -565,7 +732,7 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 	// Inventory slot action
 	if (Entry.InvSlotIndex >= 0)
 	{
-		if (Entry.ActionId == "Examine")
+		if (Entry.ActionId == RogueyActions::Examine)
 		{
 			URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
 			if (RogueyPawn->Inventory.IsValidIndex(Entry.InvSlotIndex))
@@ -574,6 +741,18 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 				const FRogueyItemRow* Row  = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
 				RogueyPawn->ShowSpeechBubble(Row && !Row->ExamineText.IsEmpty() ? Row->ExamineText : Item.ItemId.ToString());
 			}
+		}
+		else if (Entry.ActionId == RogueyActions::Eat || Entry.ActionId == RogueyActions::Drink)
+		{
+			RogueyPawn->Server_ConsumeFromInventory(Entry.InvSlotIndex);
+		}
+		else if (Entry.ActionId == RogueyActions::Drop)
+		{
+			RogueyPawn->Server_DropFromInventory(Entry.InvSlotIndex);
+		}
+		else if (Entry.ActionId == RogueyActions::Use)
+		{
+			// placeholder — misc item "Use" has no effect yet
 		}
 		else
 		{
@@ -585,7 +764,7 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 	// Equipment slot action
 	if (Entry.bIsEquipSlotAction)
 	{
-		if (Entry.ActionId == "Examine")
+		if (Entry.ActionId == RogueyActions::Examine)
 		{
 			URogueyItemRegistry* Registry = URogueyItemRegistry::Get(this);
 			const FRogueyItem*   Item     = RogueyPawn->Equipment.Find(Entry.EquipSlotTarget);
@@ -606,4 +785,46 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 	AActor* Target = Entry.TargetActor.Get();
 	if (IsValid(Target) && !Entry.ActionId.IsNone())
 		RogueyPawn->Server_RequestActorAction(Target, Entry.ActionId);
+}
+
+void ARogueyPlayerController::Server_DevSpawnNpc_Implementation(FName NpcTypeId)
+{
+	APawn* P = GetPawn();
+	if (!P) return;
+	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(P);
+	if (!RogueyPawn) return;
+
+	ARogueyGameMode* GameMode = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode());
+	if (!GameMode || !GameMode->NpcClass || !GameMode->GridManager) return;
+
+	// Try offsets in order, pick first unoccupied tile near the player
+	FIntVector2 Origin = RogueyPawn->GetTileCoord();
+	static const FIntVector2 Offsets[] = {
+		{2,0},{-2,0},{0,2},{0,-2},{3,0},{-3,0},{0,3},{0,-3},{2,2},{-2,2},{2,-2},{-2,-2}
+	};
+
+	FIntVector2 SpawnTile = FIntVector2(Origin.X + 2, Origin.Y);
+	for (const FIntVector2& Off : Offsets)
+	{
+		FIntVector2 Candidate(Origin.X + Off.X, Origin.Y + Off.Y);
+		if (GameMode->GridManager->IsInBounds(Candidate) &&
+		    !GameMode->GridManager->IsOccupiedByBlocker(Candidate))
+		{
+			SpawnTile = Candidate;
+			break;
+		}
+	}
+
+	FVector WorldPos = GameMode->GridManager->TileToWorld(SpawnTile);
+	float SurfaceZ = GameMode->Terrain ? GameMode->Terrain->GetTileHeight(SpawnTile) : 0.f;
+	WorldPos.Z = SurfaceZ + RogueyConstants::PawnHoverHeight;
+
+	ARogueyNpc* Npc = GetWorld()->SpawnActorDeferred<ARogueyNpc>(
+		GameMode->NpcClass, FTransform(WorldPos), nullptr, nullptr,
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (Npc)
+	{
+		Npc->NpcTypeId = NpcTypeId;
+		Npc->FinishSpawning(FTransform(WorldPos));
+	}
 }

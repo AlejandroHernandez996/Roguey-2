@@ -12,6 +12,18 @@
 #include "RogueyPawn.generated.h"
 
 class ARogueyGameMode;
+
+USTRUCT()
+struct FRogueyEquipmentEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EEquipmentSlot Slot = EEquipmentSlot::Head;
+
+	UPROPERTY()
+	FRogueyItem Item;
+};
 class ARogueyTerrain;
 class URogueyGridManager;
 
@@ -86,17 +98,40 @@ public:
 	int32 LastAttackTick = 0;
 	int32 AttackCooldownTicks = 4;
 
+	// Consume slot flags — reset each game tick by ActionManager before processing consume queue
+	bool bFoodSlotUsed      = false;
+	bool bQuickFoodSlotUsed = false;
+	bool bPotionSlotUsed    = false;
+
+	struct FRogueyActiveStatBuff
+	{
+		ERogueyStatType StatType    = ERogueyStatType::Melee;
+		int32           BoostAmount = 0;
+		int32           TicksRemaining = 0;
+	};
+	TArray<FRogueyActiveStatBuff> ActiveStatBuffs;
+
+	UFUNCTION(Server, Reliable)
+	void Server_ConsumeFromInventory(int32 InvSlotIndex);
+
 	// Equipment bonuses — zeroed until the Items system is built
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	FRogueyEquipmentBonuses EquipmentBonuses;
 
-	// Inventory — 28 slots, server-authoritative
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	// Inventory — 28 slots, replicated to clients
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
 	TArray<FRogueyItem> Inventory;
 
-	// Equipment slots — server-authoritative
+	// Equipment slots — server working copy (TMap can't replicate directly)
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	TMap<EEquipmentSlot, FRogueyItem> Equipment;
+
+	// Flat array mirror of Equipment — replicated, clients rebuild Equipment from this
+	UPROPERTY(ReplicatedUsing=OnRep_ReplicatedEquipment)
+	TArray<FRogueyEquipmentEntry> ReplicatedEquipment;
+
+	UFUNCTION()
+	void OnRep_ReplicatedEquipment();
 
 	// Re-sums EquipmentBonuses from all currently equipped items.
 	// Call after equipping or unequipping anything.
@@ -107,6 +142,9 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void Server_UnequipToInventory(EEquipmentSlot Slot);
+
+	UFUNCTION(Server, Reliable)
+	void Server_DropFromInventory(int32 InvSlotIndex);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 AttackRange = 1;

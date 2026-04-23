@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "Engine/Texture2D.h"
 #include "RogueyEquipmentSlot.h"
 #include "RogueyItemType.h"
+#include "Roguey/Skills/RogueyStatType.h"
 #include "RogueyItemRow.generated.h"
 
 // One row per item in DT_Items (or DT_Weapons, DT_Armor, etc.).
@@ -18,6 +20,9 @@ struct ROGUEY_API FRogueyItemRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	ERogueyItemType Type = ERogueyItemType::Misc;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	TObjectPtr<UTexture2D> Icon;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	bool bStackable = false;
@@ -47,6 +52,24 @@ struct ROGUEY_API FRogueyItemRow : public FTableRowBase
 	// ── Food ──────────────────────────────────────────────────────────────────
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Food")
 	int32 HealAmount = 0;
+
+	// ── Potion ────────────────────────────────────────────────────────────────
+	// MaxDoses > 0 only for Potion type. Quantity tracks current doses; at 0, item becomes DepletedItemId.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
+	int32 MaxDoses = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
+	ERogueyStatType StatBuffType = ERogueyStatType::Melee;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
+	int32 StatBuffAmount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
+	int32 StatBuffDurationTicks = 0;
+
+	// Item to place in the slot when all doses are consumed (e.g. "empty_vial").
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
+	FName DepletedItemId;
 
 	// ── Flavour ───────────────────────────────────────────────────────────────
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")

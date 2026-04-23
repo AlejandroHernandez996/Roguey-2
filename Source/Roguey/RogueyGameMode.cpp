@@ -11,7 +11,6 @@ ARogueyGameMode::ARogueyGameMode()
 	HUDClass = ARogueyHUD::StaticClass();
 	DefaultPawnClass = nullptr;
 	PlayerStartTiles = { FIntPoint(30, 32), FIntPoint(34, 32) };
-	NpcSpawnTiles    = { FIntPoint(32, 32) };
 }
 
 void ARogueyGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -48,18 +47,6 @@ void ARogueyGameMode::BeginPlay()
 	Terrain = GetWorld()->SpawnActor<ARogueyTerrain>(ClassToSpawn, FVector::ZeroVector, FRotator::ZeroRotator);
 	if (Terrain)
 		Terrain->BuildFromGrid(GridManager);
-
-	for (const FIntPoint& Tile : NpcSpawnTiles)
-	{
-		FVector WorldPos = GridManager->TileToWorld(FIntVector2(Tile.X, Tile.Y));
-		float SurfaceZ = Terrain ? Terrain->GetTileHeight(FIntVector2(Tile.X, Tile.Y)) : 0.f;
-		WorldPos.Z = SurfaceZ + RogueyConstants::PawnHoverHeight;
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		TSubclassOf<ARogueyNpc> NpcClassToSpawn = NpcClass ? NpcClass : TSubclassOf<ARogueyNpc>(ARogueyNpc::StaticClass());
-		GetWorld()->SpawnActor<ARogueyNpc>(NpcClassToSpawn, FTransform(WorldPos), SpawnParams);
-	}
 
 	GetWorldTimerManager().SetTimer(
 		GameTickHandle,

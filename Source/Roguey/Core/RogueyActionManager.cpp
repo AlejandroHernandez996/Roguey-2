@@ -1,4 +1,5 @@
 #include "RogueyActionManager.h"
+#include "RogueyActionNames.h"
 
 #include "RogueyInteractable.h"
 #include "RogueyMovementManager.h"
@@ -7,6 +8,13 @@
 #include "Roguey/Grid/RogueyGridManager.h"
 #include "Roguey/Grid/RogueyPathfinder.h"
 #include "Roguey/Combat/RogueyCombatManager.h"
+#include "Roguey/Items/RogueyItemRegistry.h"
+#include "Roguey/Items/RogueyItemRow.h"
+#include "Roguey/Items/RogueyItemType.h"
+#include "Roguey/Items/RogueyLootDrop.h"
+#include "Roguey/Skills/RogueyStat.h"
+#include "Roguey/Skills/RogueyStatPage.h"
+#include "EngineUtils.h"
 
 void URogueyActionManager::Init(URogueyGridManager* InGrid, URogueyMovementManager* InMovement, URogueyCombatManager* InCombat)
 {
@@ -17,6 +25,17 @@ void URogueyActionManager::Init(URogueyGridManager* InGrid, URogueyMovementManag
 
 void URogueyActionManager::RogueyTick(int32 TickIndex)
 {
+	// ── Consume queue (eat/drink) — runs before movement/combat each tick ────
+	for (auto& [Pawn, Slots] : PendingConsumeSlots)
+	{
+		if (IsValid(Pawn) && !Pawn->IsDead())
+			ProcessConsumeQueue(Pawn, Slots);
+	}
+	PendingConsumeSlots.Empty();
+
+	TickStatBuffs();
+
+	// ── Main action loop ──────────────────────────────────────────────────────
 	TArray<ARogueyPawn*> ToRemove;
 
 	for (auto& [Pawn, Action] : PendingActions)
@@ -32,6 +51,7 @@ void URogueyActionManager::RogueyTick(int32 TickIndex)
 			case EActionType::Move:       TickMove(Pawn, Action, TickIndex);       break;
 			case EActionType::AttackMove: TickAttackMove(Pawn, Action, TickIndex); break;
 			case EActionType::Attack:     TickAttack(Pawn, Action, TickIndex);     break;
+			case EActionType::TakeLoot:   TickTakeLoot(Pawn, Action, TickIndex);   break;
 			default: break;
 		}
 
@@ -81,12 +101,17 @@ void URogueyActionManager::SetActorAction(ARogueyPawn* Pawn, AActor* Target, FNa
 	TArray<FRogueyActionDef> Actions = Interactable->GetActions();
 	if (!Actions.ContainsByPredicate([&](const FRogueyActionDef& A){ return A.ActionId == ActionId; })) return;
 
-	if (ActionId == "Attack")
+	if (ActionId == RogueyActions::Attack)
 	{
 		if (ARogueyPawn* TargetPawn = Cast<ARogueyPawn>(Target))
 			SetAttackAction(Pawn, TargetPawn);
 	}
-	else if (ActionId == "Examine")
+	else if (ActionId == RogueyActions::Take)
+	{
+		if (ARogueyLootDrop* Drop = Cast<ARogueyLootDrop>(Target))
+			SetTakeLootAction(Pawn, Drop);
+	}
+	else if (ActionId == RogueyActions::Examine)
 	{
 		FString Text = Interactable->GetExamineText();
 		Pawn->ShowSpeechBubble(Text);
@@ -125,7 +150,7 @@ ARogueyPawn* URogueyActionManager::GetAttackTarget(const ARogueyPawn* Pawn) cons
 	if (!Pawn) return nullptr;
 	if (const FRogueyPendingAction* Action = PendingActions.Find(const_cast<ARogueyPawn*>(Pawn)))
 		if (Action->Type == EActionType::Attack || Action->Type == EActionType::AttackMove)
-			return Action->TargetActor.Get();
+			return Cast<ARogueyPawn>(Action->TargetActor.Get());
 	return nullptr;
 }
 
@@ -152,7 +177,7 @@ void URogueyActionManager::TickMove(ARogueyPawn* Pawn, FRogueyPendingAction& Act
 
 void URogueyActionManager::TickAttackMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex)
 {
-	ARogueyPawn* Target = Action.TargetActor.Get();
+	ARogueyPawn* Target = Cast<ARogueyPawn>(Action.TargetActor.Get());
 	if (!IsValid(Target) || Target->IsDead())
 	{
 		MovementManager->CancelMove(Pawn);
@@ -202,7 +227,7 @@ void URogueyActionManager::TickAttackMove(ARogueyPawn* Pawn, FRogueyPendingActio
 
 void URogueyActionManager::TickAttack(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex)
 {
-	ARogueyPawn* Target = Action.TargetActor.Get();
+	ARogueyPawn* Target = Cast<ARogueyPawn>(Action.TargetActor.Get());
 	if (!IsValid(Target) || Target->IsDead())
 	{
 		Pawn->SetPawnState(EPawnState::Idle);
@@ -291,4 +316,175 @@ FIntVector2 URogueyActionManager::FindBestAttackTile(FIntVector2 AOrigin, FIntPo
 int32 URogueyActionManager::ChebyshevDist(FIntVector2 A, FIntVector2 B)
 {
 	return FMath::Max(FMath::Abs(A.X - B.X), FMath::Abs(A.Y - B.Y));
+}
+
+// ---------------------------------------------------------------------------
+// Loot
+// ---------------------------------------------------------------------------
+
+void URogueyActionManager::SetTakeLootAction(ARogueyPawn* Pawn, ARogueyLootDrop* Drop)
+{
+	if (!IsValid(Pawn) || !IsValid(Drop)) return;
+
+	ClearAction(Pawn);
+
+	FRogueyPendingAction Action;
+	Action.Type        = EActionType::TakeLoot;
+	Action.TargetActor = Drop;
+	PendingActions.Add(Pawn, Action);
+
+	if (Pawn->GetTileCoord() != Drop->LootTile)
+	{
+		FRogueyPath Path = RogueyPathfinder::FindPath(GridManager, Pawn->GetTileCoord(), Drop->LootTile, Pawn->TileExtent);
+		if (Path.IsValid())
+			MovementManager->RequestMove(Pawn, MoveTemp(Path), true);
+	}
+}
+
+void URogueyActionManager::TickTakeLoot(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex)
+{
+	ARogueyLootDrop* Drop = Cast<ARogueyLootDrop>(Action.TargetActor.Get());
+	if (!IsValid(Drop))
+	{
+		MovementManager->CancelMove(Pawn);
+		Action.Clear();
+		return;
+	}
+
+	if (Pawn->GetTileCoord() == Drop->LootTile)
+	{
+		MovementManager->CancelMove(Pawn);
+		Drop->TakeItem(Pawn);
+		Action.Clear();
+		return;
+	}
+
+	// Re-path if we've stopped moving (e.g. blocked)
+	if (!MovementManager->HasPendingMove(Pawn))
+	{
+		FRogueyPath Path = RogueyPathfinder::FindPath(GridManager, Pawn->GetTileCoord(), Drop->LootTile, Pawn->TileExtent);
+		if (Path.IsValid())
+			MovementManager->RequestMove(Pawn, MoveTemp(Path), true);
+		else
+			Action.Clear(); // unreachable
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Consume queue
+// ---------------------------------------------------------------------------
+
+void URogueyActionManager::QueueConsume(ARogueyPawn* Pawn, int32 InvSlotIndex)
+{
+	if (!IsValid(Pawn)) return;
+	PendingConsumeSlots.FindOrAdd(Pawn).Add(InvSlotIndex);
+}
+
+void URogueyActionManager::ProcessConsumeQueue(ARogueyPawn* Pawn, TArray<int32>& Slots)
+{
+	URogueyItemRegistry* Reg = URogueyItemRegistry::Get(Pawn);
+	if (!Reg) return;
+
+	// Reset slot flags for this tick
+	Pawn->bFoodSlotUsed      = false;
+	Pawn->bQuickFoodSlotUsed = false;
+	Pawn->bPotionSlotUsed    = false;
+
+	for (int32 SlotIdx : Slots)
+	{
+		if (!Pawn->Inventory.IsValidIndex(SlotIdx)) continue;
+		FRogueyItem& InvItem = Pawn->Inventory[SlotIdx];
+		if (InvItem.IsEmpty()) continue;
+
+		const FRogueyItemRow* Row = Reg->FindItem(InvItem.ItemId);
+		if (!Row) continue;
+
+		if (Row->Type == ERogueyItemType::Food3Tick)
+		{
+			if (Pawn->bFoodSlotUsed) continue;
+			Pawn->CurrentHP = FMath::Min(Pawn->CurrentHP + Row->HealAmount, Pawn->MaxHP);
+			Pawn->OnRep_HP();
+			Pawn->AttackCooldownTicks += 3;
+			Pawn->bFoodSlotUsed = true;
+
+			InvItem.Quantity--;
+			if (InvItem.Quantity <= 0) InvItem = FRogueyItem();
+		}
+		else if (Row->Type == ERogueyItemType::FoodQuick)
+		{
+			if (Pawn->bQuickFoodSlotUsed) continue;
+			Pawn->CurrentHP = FMath::Min(Pawn->CurrentHP + Row->HealAmount, Pawn->MaxHP);
+			Pawn->OnRep_HP();
+			Pawn->AttackCooldownTicks += 2;
+			Pawn->bFoodSlotUsed      = true;
+			Pawn->bQuickFoodSlotUsed = true;
+			Pawn->bPotionSlotUsed    = true;
+
+			InvItem.Quantity--;
+			if (InvItem.Quantity <= 0) InvItem = FRogueyItem();
+		}
+		else if (Row->Type == ERogueyItemType::Potion)
+		{
+			if (Pawn->bPotionSlotUsed) continue;
+			if (Row->StatBuffAmount <= 0 || Row->StatBuffDurationTicks <= 0) continue;
+
+			// Apply or refresh the stat buff
+			bool bFound = false;
+			for (ARogueyPawn::FRogueyActiveStatBuff& Buff : Pawn->ActiveStatBuffs)
+			{
+				if (Buff.StatType == Row->StatBuffType)
+				{
+					// Refresh: remove old boost, apply new
+					Pawn->StatPage.ModifyCurrent(Buff.StatType, -Buff.BoostAmount);
+					Buff.BoostAmount     = Row->StatBuffAmount;
+					Buff.TicksRemaining  = Row->StatBuffDurationTicks;
+					Pawn->StatPage.ModifyCurrent(Buff.StatType, Buff.BoostAmount);
+					bFound = true;
+					break;
+				}
+			}
+			if (!bFound)
+			{
+				ARogueyPawn::FRogueyActiveStatBuff NewBuff;
+				NewBuff.StatType       = Row->StatBuffType;
+				NewBuff.BoostAmount    = Row->StatBuffAmount;
+				NewBuff.TicksRemaining = Row->StatBuffDurationTicks;
+				Pawn->ActiveStatBuffs.Add(NewBuff);
+				Pawn->StatPage.ModifyCurrent(Row->StatBuffType, Row->StatBuffAmount);
+			}
+
+			Pawn->bPotionSlotUsed = true;
+
+			// Consume one dose
+			InvItem.Quantity--;
+			if (InvItem.Quantity <= 0)
+			{
+				InvItem.ItemId   = Row->DepletedItemId.IsNone() ? FName() : Row->DepletedItemId;
+				InvItem.Quantity = InvItem.ItemId.IsNone() ? 0 : 1;
+				if (InvItem.ItemId.IsNone()) InvItem = FRogueyItem();
+			}
+		}
+	}
+}
+
+void URogueyActionManager::TickStatBuffs()
+{
+	for (TActorIterator<ARogueyPawn> It(GetWorld()); It; ++It)
+	{
+		ARogueyPawn* Pawn = *It;
+		if (!IsValid(Pawn) || Pawn->ActiveStatBuffs.IsEmpty()) continue;
+
+		for (int32 i = Pawn->ActiveStatBuffs.Num() - 1; i >= 0; i--)
+		{
+			ARogueyPawn::FRogueyActiveStatBuff& Buff = Pawn->ActiveStatBuffs[i];
+			Buff.TicksRemaining--;
+			if (Buff.TicksRemaining <= 0)
+			{
+				// Restore: remove boost but don't go below base level
+				if (FRogueyStat* Stat = Pawn->StatPage.Stats.Find(Buff.StatType))
+					Stat->CurrentLevel = FMath::Max(Stat->CurrentLevel - Buff.BoostAmount, Stat->BaseLevel);
+				Pawn->ActiveStatBuffs.RemoveAt(i);
+			}
+		}
+	}
 }

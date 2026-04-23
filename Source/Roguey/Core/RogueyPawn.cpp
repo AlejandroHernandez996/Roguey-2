@@ -7,6 +7,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Roguey/RogueyGameMode.h"
+#include "Roguey/Items/RogueyLootDrop.h"
 #include "Roguey/Terrain/RogueyTerrain.h"
 #include "Roguey/UI/RogueyHUD.h"
 
@@ -215,6 +216,13 @@ void ARogueyPawn::OnRep_HitSplat()
 			HUD->AddHitSplat(GetActorLocation() + FVector(0.f, 0.f, 220.f), LastHitDamage);
 }
 
+void ARogueyPawn::Server_ConsumeFromInventory_Implementation(int32 InvSlotIndex)
+{
+	ARogueyGameMode* GameMode = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode());
+	if (!GameMode || !GameMode->ActionManager) return;
+	GameMode->ActionManager->QueueConsume(this, InvSlotIndex);
+}
+
 void ARogueyPawn::Server_EquipFromInventory_Implementation(int32 InvSlotIndex)
 {
 	if (!Inventory.IsValidIndex(InvSlotIndex) || Inventory[InvSlotIndex].IsEmpty()) return;
@@ -248,6 +256,19 @@ void ARogueyPawn::Server_UnequipToInventory_Implementation(EEquipmentSlot Slot)
 	RecalcEquipmentBonuses();
 }
 
+void ARogueyPawn::Server_DropFromInventory_Implementation(int32 InvSlotIndex)
+{
+	if (!Inventory.IsValidIndex(InvSlotIndex) || Inventory[InvSlotIndex].IsEmpty()) return;
+
+	FRogueyItem ItemToDrop   = Inventory[InvSlotIndex];
+	Inventory[InvSlotIndex]  = FRogueyItem();
+
+	ARogueyLootDrop* Drop = GetWorld()->SpawnActor<ARogueyLootDrop>(
+		ARogueyLootDrop::StaticClass(), GetActorLocation(), FRotator::ZeroRotator);
+	if (Drop)
+		Drop->Init(ItemToDrop, GetTileCoord());
+}
+
 void ARogueyPawn::RecalcEquipmentBonuses()
 {
 	EquipmentBonuses = FRogueyEquipmentBonuses();
@@ -264,6 +285,22 @@ void ARogueyPawn::RecalcEquipmentBonuses()
 		EquipmentBonuses.MeleeStrength += Row->MeleeStrengthBonus;
 		EquipmentBonuses.MeleeDefence  += Row->MeleeDefenceBonus;
 	}
+
+	// Sync replicated mirror so clients see current equipment
+	ReplicatedEquipment.Reset();
+	for (const auto& Pair : Equipment)
+	{
+		if (!Pair.Value.IsEmpty())
+			ReplicatedEquipment.Add({ Pair.Key, Pair.Value });
+	}
+	OnRep_ReplicatedEquipment(); // apply locally on server/listen-server host
+}
+
+void ARogueyPawn::OnRep_ReplicatedEquipment()
+{
+	Equipment.Reset();
+	for (const FRogueyEquipmentEntry& Entry : ReplicatedEquipment)
+		Equipment.Add(Entry.Slot, Entry.Item);
 }
 
 void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -281,4 +318,6 @@ void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ARogueyPawn, LastHitTime);
 	DOREPLIFETIME(ARogueyPawn, SpeechBubbleText);
 	DOREPLIFETIME(ARogueyPawn, SpeechBubbleCounter);
+	DOREPLIFETIME(ARogueyPawn, Inventory);
+	DOREPLIFETIME(ARogueyPawn, ReplicatedEquipment);
 }

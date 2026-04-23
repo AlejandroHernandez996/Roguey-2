@@ -30,10 +30,10 @@ struct FContextMenuEntry
 
 struct FDevPanelHit
 {
-	enum class EType : uint8 { None, Tab, InvSlot, EquipSlot };
+	enum class EType : uint8 { None, Tab, InvSlot, EquipSlot, NpcSpawn };
 
 	EType          Type      = EType::None;
-	int32          Index     = -1;                           // tab index or inventory slot [0-27]
+	int32          Index     = -1;                           // tab index, inventory slot, or NpcSpawn entry index
 	EEquipmentSlot EquipSlot = EEquipmentSlot::Head;         // valid when Type == EquipSlot
 };
 
@@ -81,7 +81,10 @@ public:
 
 	// ── Dev panel API ─────────────────────────────────────────────────────────
 	bool bDevPanelOpen = false;
-	int32 ActiveTab    = 0;   // 0=Stats 1=Equipment 2=Inventory
+	int32 ActiveTab    = 0;   // 0=Stats 1=Equipment 2=Inventory 3=Spawn
+
+	// Written each frame during DrawHUD — read by the player controller on click
+	TArray<FName> DevSpawnNpcTypes;
 
 	void         SetActiveTab(int32 Index);
 	FDevPanelHit HitTestDevPanel(float MX, float MY) const;
@@ -92,6 +95,7 @@ private:
 	void DrawTargetPanel();
 	void DrawPlayerHP();
 	void DrawHealthBars();
+	void DrawLootDropLabels();
 	void DrawHitSplats(float DeltaSeconds);
 	void DrawSpeechBubbles(float DeltaSeconds);
 	void DrawDevPanel();
@@ -100,6 +104,7 @@ private:
 	void DrawDevTab_Stats(float PX, float PY, float PW, UFont* F);
 	void DrawDevTab_Equipment(float PX, float PY, float PW, UFont* F);
 	void DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F);
+	void DrawDevTab_Spawn(float PX, float PY, float PW, UFont* F);
 
 	UFont* Font() const { return OSRSFont ? OSRSFont.Get() : nullptr; }
 
@@ -117,9 +122,9 @@ private:
 	// Hit-test cache — set during DrawHUD, valid outside it
 	struct FHitRect { float X, Y, W, H; };
 	float DevPanelX = 0.f, DevPanelY = 0.f, DevPanelH = 0.f;
-	FHitRect                  DevTabRects[3];
-	TArray<FHitRect>          DevSlotRects;      // inv slots or equip slots for active tab
-	TArray<EEquipmentSlot>    DevEquipSlotOrder; // parallel to DevSlotRects when tab==1
+	FHitRect               DevTabRects[4];
+	TArray<FHitRect>       DevSlotRects;      // inv/equip/spawn rows for active tab
+	TArray<EEquipmentSlot> DevEquipSlotOrder; // parallel to DevSlotRects when tab==1
 
 	static constexpr float BubbleDuration   = 4.0f;
 	static constexpr float SplatDuration    = 1.5f;

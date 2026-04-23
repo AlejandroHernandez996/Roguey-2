@@ -34,6 +34,9 @@ public:
 	TObjectPtr<UInputAction> CameraZoomAction;
 
 	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> PrimaryModifierAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> SecondaryModifierAction;
 
 	UPROPERTY(EditAnywhere, Category = "Input")
@@ -68,6 +71,8 @@ private:
 	void OnCameraRotateCompleted(const FInputActionValue& Value);
 	void OnMouseDelta(const FInputActionValue& Value);
 	void OnCameraZoom(const FInputActionValue& Value);
+	void OnPrimaryModifierStarted(const FInputActionValue& Value);
+	void OnPrimaryModifierCompleted(const FInputActionValue& Value);
 	void OnSecondaryModifierStarted(const FInputActionValue& Value);
 	void OnSecondaryModifierCompleted(const FInputActionValue& Value);
 	void OnTabStats(const FInputActionValue& Value);
@@ -80,9 +85,14 @@ private:
 	void ExecuteContextEntry(const struct FContextMenuEntry& Entry);
 	void OnClickCompleted(const FInputActionValue& Value);
 
-	bool bRotatingCamera        = false;
-	bool bSecondaryModifierHeld = false;
-	bool bMenuWasOpenOnPress    = false; // blocks held-click movement after dismissing menu
+	UFUNCTION(Server, Reliable)
+	void Server_DevSpawnNpc(FName NpcTypeId);
+
+	bool bRotatingCamera           = false;
+	bool bPrimaryModifierHeld      = false;
+	bool bSecondaryModifierHeld    = false;
+	bool bMenuWasOpenOnPress       = false; // blocks held-click movement after dismissing menu
+	bool bDevPanelClickHandled     = false; // prevents dev panel click from firing every held frame
 
 	UPROPERTY()
 	TObjectPtr<ARogueyTerrain> CachedTerrain;

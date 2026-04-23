@@ -76,6 +76,22 @@ GetContextEntryCopy(Index, OutEntry)  // to read what was clicked
 - **World payload**: `TargetActor`, `TargetTile`, `ActionId`, `bIsWalk`, `bIsCancel`
 - **Item slot payload**: `InvSlotIndex` (≥0), `EquipSlotTarget` + `bIsEquipSlotAction`
 
+### Action colours
+
+| ActionId | Colour | When shown |
+|---|---|---|
+| `Attack` | Red | NPC/enemy right-click |
+| `Examine` | Green | Any interactable |
+| `Take` | Yellow | Ground loot drop |
+| `Eat` | Light green | Food3Tick / FoodQuick in inventory |
+| `Drink` | Blue | Potion in inventory (label includes dose count) |
+
+### Left-click inventory behaviour
+
+Left-clicking an inventory slot dispatches based on item type:
+- Food3Tick / FoodQuick / Potion → `Server_ConsumeFromInventory`
+- Equippable → `Server_EquipFromInventory`
+
 ## Font
 
 Set `OSRSFont` (UPROPERTY) in the Blueprint subclass. If null, text calls are silently skipped. All draw calls check `Font()` before use.

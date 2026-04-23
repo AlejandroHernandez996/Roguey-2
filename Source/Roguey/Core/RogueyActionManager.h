@@ -7,9 +7,11 @@
 #include "RogueyActionManager.generated.h"
 
 class ARogueyPawn;
+class ARogueyLootDrop;
 class URogueyGridManager;
 class URogueyMovementManager;
 class URogueyCombatManager;
+class URogueyItemRegistry;
 
 UCLASS()
 class ROGUEY_API URogueyActionManager : public UObject, public IRogueyTickable
@@ -33,6 +35,13 @@ public:
 	// AI-initiated attack — bypasses IRogueyInteractable validation.
 	void SetAttackAction(ARogueyPawn* Pawn, ARogueyPawn* Target);
 
+	// Queue a consume for this pawn (food, quick food, or potion). Multiple calls per tick
+	// are processed in order at the start of the next tick.
+	void QueueConsume(ARogueyPawn* Pawn, int32 InvSlotIndex);
+
+	// Walk to ground item, then transfer it to pawn's inventory.
+	void SetTakeLootAction(ARogueyPawn* Pawn, ARogueyLootDrop* Drop);
+
 	bool HasAction(ARogueyPawn* Pawn) const;
 	EActionType GetActionType(ARogueyPawn* Pawn) const;
 	ARogueyPawn* GetAttackTarget(const ARogueyPawn* Pawn) const;
@@ -49,6 +58,10 @@ private:
 	void TickMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
 	void TickAttack(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
 	void TickAttackMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
+	void TickTakeLoot(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
+
+	void ProcessConsumeQueue(ARogueyPawn* Pawn, TArray<int32>& Slots);
+	void TickStatBuffs();
 
 	void RequestMoveTowardTarget(ARogueyPawn* Pawn, ARogueyPawn* Target);
 	FIntVector2 FindBestAttackTile(FIntVector2 AOrigin, FIntPoint AExtent, FIntVector2 TOrigin, FIntPoint TExtent, int32 Range, bool bCardinalOnly) const;
@@ -63,4 +76,7 @@ private:
 	TObjectPtr<URogueyCombatManager> CombatManager;
 
 	TMap<ARogueyPawn*, FRogueyPendingAction> PendingActions;
+
+	// Ordered consume requests per pawn — drained at start of each tick before movement/combat.
+	TMap<ARogueyPawn*, TArray<int32>> PendingConsumeSlots;
 };

@@ -2,7 +2,18 @@
 
 bool FRogueyItemRow::IsEquippable() const
 {
-	return Type != ERogueyItemType::Misc && Type != ERogueyItemType::Food;
+	switch (Type)
+	{
+		case ERogueyItemType::Misc:
+		case ERogueyItemType::Food3Tick:
+		case ERogueyItemType::FoodQuick:
+		case ERogueyItemType::Potion:
+		case ERogueyItemType::QuestItem:
+		case ERogueyItemType::Usable:
+			return false;
+		default:
+			return true;
+	}
 }
 
 EEquipmentSlot FRogueyItemRow::GetEquipSlot() const

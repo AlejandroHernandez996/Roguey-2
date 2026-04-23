@@ -61,11 +61,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Terrain")
 	TSubclassOf<ARogueyTerrain> TerrainClass;
 
+	// Blueprint class used by the dev spawn menu (assign BP_RogueyNpc here).
 	UPROPERTY(EditAnywhere, Category = "NPCs")
 	TSubclassOf<ARogueyNpc> NpcClass;
-
-	UPROPERTY(EditAnywhere, Category = "NPCs")
-	TArray<FIntPoint> NpcSpawnTiles;
 
 protected:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;

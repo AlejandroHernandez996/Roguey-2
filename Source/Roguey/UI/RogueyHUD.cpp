@@ -7,7 +7,9 @@
 #include "Roguey/Core/RogueyPawnState.h"
 #include "Roguey/Items/RogueyEquipmentSlot.h"
 #include "Roguey/Items/RogueyItemRegistry.h"
+#include "Roguey/Items/RogueyLootDrop.h"
 #include "Roguey/Npcs/RogueyNpc.h"
+#include "Roguey/Npcs/RogueyNpcRegistry.h"
 #include "Roguey/RogueyGameMode.h"
 #include "Roguey/Skills/RogueyStat.h"
 #include "Roguey/Skills/RogueyStatType.h"
@@ -21,6 +23,7 @@ void ARogueyHUD::DrawHUD()
 	DrawHitSplats(DeltaSeconds);
 	DrawSpeechBubbles(DeltaSeconds);
 	DrawHealthBars();
+	DrawLootDropLabels();
 	DrawPlayerHP();
 	DrawTargetPanel();
 	if (bDevPanelOpen) DrawDevPanel();
@@ -278,7 +281,7 @@ void ARogueyHUD::DrawTargetPanel()
 
 	FString Name;
 	if (const ARogueyNpc* Npc = Cast<ARogueyNpc>(Target))
-		Name = Npc->NpcName;
+		Name = Npc->GetTargetName().ToString();
 	else
 		Name = Target->GetClass()->GetName();
 
@@ -351,13 +354,51 @@ void ARogueyHUD::DrawHealthBars()
 	}
 }
 
+// ── Loot drop labels ──────────────────────────────────────────────────────────
+
+void ARogueyHUD::DrawLootDropLabels()
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC) return;
+
+	URogueyItemRegistry* Reg = URogueyItemRegistry::Get(this);
+
+	for (TActorIterator<ARogueyLootDrop> It(GetWorld()); It; ++It)
+	{
+		ARogueyLootDrop* Drop = *It;
+		if (!IsValid(Drop) || Drop->Item.IsEmpty()) continue;
+
+		FVector2D ScreenPos;
+		if (!PC->ProjectWorldLocationToScreen(Drop->GetActorLocation() + FVector(0, 0, 50.f), ScreenPos)) continue;
+
+		const FRogueyItemRow* Row = Reg ? Reg->FindItem(Drop->Item.ItemId) : nullptr;
+		FString Label = Row ? Row->DisplayName : Drop->Item.ItemId.ToString();
+		if (Drop->Item.Quantity > 1)
+			Label = FString::Printf(TEXT("%s (%d)"), *Label, Drop->Item.Quantity);
+
+		float TW, TH;
+		GetTextSize(Label, TW, TH, Font(), 1.f);
+
+		// Small yellow square marker
+		const float MarkerSize = 8.f;
+		DrawRect(FLinearColor(1.f, 0.85f, 0.1f, 0.9f),
+		         ScreenPos.X - MarkerSize * 0.5f, ScreenPos.Y - MarkerSize * 0.5f,
+		         MarkerSize, MarkerSize);
+
+		// Item name to the right
+		DrawText(Label, FLinearColor(1.f, 0.85f, 0.1f, 1.f),
+		         ScreenPos.X + MarkerSize, ScreenPos.Y - TH * 0.5f, Font(), 1.f);
+	}
+}
+
 // ── Dev panel ─────────────────────────────────────────────────────────────────
 
 void ARogueyHUD::SetActiveTab(int32 Index)
 {
-	ActiveTab = FMath::Clamp(Index, 0, 2);
+	ActiveTab = FMath::Clamp(Index, 0, 3);
 	DevSlotRects.Empty();
 	DevEquipSlotOrder.Empty();
+	DevSpawnNpcTypes.Empty();
 }
 
 bool ARogueyHUD::IsMouseOverDevPanel(float MX, float MY) const
@@ -373,7 +414,7 @@ FDevPanelHit ARogueyHUD::HitTestDevPanel(float MX, float MY) const
 	if (!IsMouseOverDevPanel(MX, MY)) return Result;
 
 	// Tab bar
-	for (int32 i = 0; i < 3; i++)
+	for (int32 i = 0; i < 4; i++)
 	{
 		const FHitRect& R = DevTabRects[i];
 		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
@@ -390,12 +431,17 @@ FDevPanelHit ARogueyHUD::HitTestDevPanel(float MX, float MY) const
 		const FHitRect& R = DevSlotRects[i];
 		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
 		{
-			if (ActiveTab == 1) // equipment
+			if (ActiveTab == 1)
 			{
 				Result.Type      = FDevPanelHit::EType::EquipSlot;
 				Result.EquipSlot = DevEquipSlotOrder.IsValidIndex(i) ? DevEquipSlotOrder[i] : EEquipmentSlot::Head;
 			}
-			else // inventory
+			else if (ActiveTab == 3)
+			{
+				Result.Type  = FDevPanelHit::EType::NpcSpawn;
+				Result.Index = i;
+			}
+			else
 			{
 				Result.Type  = FDevPanelHit::EType::InvSlot;
 				Result.Index = i;
@@ -444,9 +490,9 @@ void ARogueyHUD::DrawDevPanel()
 	DrawRect(BorderColor,  PX,             PY,          1.f,       TotalH);
 	DrawRect(BorderColor,  PX + DevPanelW, PY,          1.f,       TotalH + 1.f);
 
-	static const TCHAR* TabLabels[] = { TEXT("Stats"), TEXT("Equipment"), TEXT("Inventory") };
-	const float TabW = DevPanelW / 3.f;
-	for (int32 i = 0; i < 3; i++)
+	static const TCHAR* TabLabels[] = { TEXT("Stats"), TEXT("Equip"), TEXT("Inv"), TEXT("Spawn") };
+	const float TabW = DevPanelW / 4.f;
+	for (int32 i = 0; i < 4; i++)
 	{
 		const float TX      = PX + i * TabW;
 		const bool  bActive = (ActiveTab == i);
@@ -466,6 +512,7 @@ void ARogueyHUD::DrawDevPanel()
 
 	DevSlotRects.Reset();
 	DevEquipSlotOrder.Reset();
+	DevSpawnNpcTypes.Reset();
 
 	const float ContentY = PY + DevTabH + 1.f;
 	switch (ActiveTab)
@@ -473,6 +520,7 @@ void ARogueyHUD::DrawDevPanel()
 		case 0: DrawDevTab_Stats(PX, ContentY, DevPanelW, F);     break;
 		case 1: DrawDevTab_Equipment(PX, ContentY, DevPanelW, F); break;
 		case 2: DrawDevTab_Inventory(PX, ContentY, DevPanelW, F); break;
+		case 3: DrawDevTab_Spawn(PX, ContentY, DevPanelW, F);     break;
 		default: break;
 	}
 }
@@ -617,11 +665,19 @@ void ARogueyHUD::DrawDevTab_Equipment(float PX, float PY, float PW, UFont* F)
 		if (bHasItem)
 		{
 			const FRogueyItemRow* Row = Registry ? Registry->FindItem(Item->ItemId) : nullptr;
-			FString Short = Row ? Row->DisplayName.Left(4) : Item->ItemId.ToString().Left(4);
-			float TW, TH;
-			GetTextSize(Short, TW, TH, F, 0.8f);
-			DrawText(Short, ItemColor,
-			         SX + (DevSlotSize - TW) * 0.5f, SY + (DevSlotSize - TH) * 0.5f, F, 0.8f);
+			if (Row && Row->Icon)
+			{
+				DrawTexture(Row->Icon, SX + 2.f, SY + 2.f, DevSlotSize - 4.f, DevSlotSize - 4.f,
+				            0.f, 0.f, 1.f, 1.f, FLinearColor::White);
+			}
+			else
+			{
+				FString Short = Row ? Row->DisplayName.Left(4) : Item->ItemId.ToString().Left(4);
+				float TW, TH;
+				GetTextSize(Short, TW, TH, F, 0.8f);
+				DrawText(Short, ItemColor,
+				         SX + (DevSlotSize - TW) * 0.5f, SY + (DevSlotSize - TH) * 0.5f, F, 0.8f);
+			}
 		}
 		else
 		{
@@ -680,11 +736,19 @@ void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
 			if (!Item.IsEmpty())
 			{
 				const FRogueyItemRow* ItemRow = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
-				FString Short = ItemRow ? ItemRow->DisplayName.Left(4) : Item.ItemId.ToString().Left(4);
-				float TW, TH;
-				GetTextSize(Short, TW, TH, F, 0.8f);
-				DrawText(Short, ItemColor,
-				         SX + (DevSlotSize - TW) * 0.5f, SY + (DevSlotSize - TH) * 0.5f, F, 0.8f);
+				if (ItemRow && ItemRow->Icon)
+				{
+					DrawTexture(ItemRow->Icon, SX + 2.f, SY + 2.f, DevSlotSize - 4.f, DevSlotSize - 4.f,
+					            0.f, 0.f, 1.f, 1.f, FLinearColor::White);
+				}
+				else
+				{
+					FString Short = ItemRow ? ItemRow->DisplayName.Left(4) : Item.ItemId.ToString().Left(4);
+					float TW, TH;
+					GetTextSize(Short, TW, TH, F, 0.8f);
+					DrawText(Short, ItemColor,
+					         SX + (DevSlotSize - TW) * 0.5f, SY + (DevSlotSize - TH) * 0.5f, F, 0.8f);
+				}
 
 				if (Item.Quantity > 1)
 					DrawText(FString::FromInt(Item.Quantity), QtyColor, SX + 2.f, SY + 2.f, F, 0.75f);
@@ -692,5 +756,44 @@ void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
 
 			DevSlotRects.Add({ SX, SY, DevSlotSize, DevSlotSize });
 		}
+	}
+}
+
+void ARogueyHUD::DrawDevTab_Spawn(float PX, float PY, float PW, UFont* F)
+{
+	URogueyNpcRegistry* Registry = URogueyNpcRegistry::Get(this);
+	if (!Registry) return;
+
+	TArray<FName> NpcTypes = Registry->GetAllNpcTypeIds();
+
+	const FLinearColor RowBg(0.08f, 0.08f, 0.08f, 1.f);
+	const FLinearColor RowHover(0.18f, 0.32f, 0.18f, 1.f);
+	const FLinearColor LabelColor = FLinearColor::White;
+	const float RowW = PW - DevPadX * 2.f;
+
+	float MY = 0.f;
+	float MX = 0.f;
+	if (APlayerController* PC = GetOwningPlayerController())
+		PC->GetMousePosition(MX, MY);
+
+	float Y = PY + DevPadY;
+	for (const FName& TypeId : NpcTypes)
+	{
+		const float RX = PX + DevPadX;
+		const bool bHovered = (MX >= RX && MX <= RX + RowW && MY >= Y && MY <= Y + DevRowH);
+
+		DrawRect(bHovered ? RowHover : RowBg, RX, Y, RowW, DevRowH);
+
+		URogueyNpcRegistry* Reg = Registry; // already have it
+		FString Label = TypeId.ToString();
+		if (const FRogueyNpcRow* Row = Reg->FindNpc(TypeId))
+			Label = Row->NpcName;
+
+		DrawText(Label, LabelColor, RX + 4.f, Y + 2.f, F, 0.9f);
+
+		DevSlotRects.Add({ RX, Y, RowW, DevRowH });
+		DevSpawnNpcTypes.Add(TypeId);
+
+		Y += DevRowH + DevSlotGap;
 	}
 }

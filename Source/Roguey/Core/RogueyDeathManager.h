@@ -7,6 +7,7 @@
 
 class URogueyGridManager;
 class URogueyActionManager;
+class ARogueyNpc;
 
 UCLASS()
 class ROGUEY_API URogueyDeathManager : public UObject, public IRogueyTickable
@@ -19,6 +20,8 @@ public:
 	virtual void RogueyTick(int32 TickIndex) override;
 
 private:
+	void SpawnLootForNpc(ARogueyNpc* Npc);
+
 	UPROPERTY()
 	TObjectPtr<URogueyGridManager> GridManager;
 
