@@ -29,4 +29,8 @@ public:
 	// Row type must be FRogueyLootTableRow. Row names: "{npcTypeId}_{suffix}".
 	UPROPERTY(Config, EditAnywhere, Category = "Tables")
 	TSoftObjectPtr<UDataTable> LootTable;
+
+	// Row type must be FRogueyDialogueNode. Row name = NodeId.
+	UPROPERTY(Config, EditAnywhere, Category = "Tables")
+	TSoftObjectPtr<UDataTable> DialogueTable;
 };

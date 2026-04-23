@@ -1,0 +1,5 @@
+---,SpeakerName,DialogueText,Choices,NextNodeId,SetsFlag
+guide_intro_1,,"Welcome, adventurer. I have been stationed here to assist those brave enough to enter these dungeons.",,guide_choice_1,
+guide_choice_1,,"Is there anything I can help you with?","((ChoiceText=INVTEXT(""Tell me about combat.""),NextNodeId=""guide_combat_1"",RequiredFlag=None,SetsFlag=None),(ChoiceText=INVTEXT(""Tell me about my inventory.""),NextNodeId=""guide_inv_1"",RequiredFlag=None,SetsFlag=None),(ChoiceText=INVTEXT(""I am ready. Goodbye.""),NextNodeId=None,RequiredFlag=None,SetsFlag=None))",,
+guide_combat_1,,"Click on an enemy to attack. Your melee level determines your accuracy and max hit. Eat food to restore health - it does not regenerate on its own.",,guide_choice_1,
+guide_inv_1,,"You have 28 inventory slots. Equip better gear to improve your combat stats. Keep food and potions on hand. Hold Shift and left-click an item to drop it.",,guide_choice_1,

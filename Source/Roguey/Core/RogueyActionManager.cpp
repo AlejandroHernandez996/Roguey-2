@@ -1,5 +1,9 @@
 #include "RogueyActionManager.h"
 #include "RogueyActionNames.h"
+#include "Roguey/World/RogueyPortal.h"
+#include "Roguey/Npcs/RogueyNpc.h"
+#include "Roguey/Npcs/RogueyNpcRegistry.h"
+#include "Roguey/RogueyPlayerController.h"
 
 #include "RogueyInteractable.h"
 #include "RogueyMovementManager.h"
@@ -52,6 +56,7 @@ void URogueyActionManager::RogueyTick(int32 TickIndex)
 			case EActionType::AttackMove: TickAttackMove(Pawn, Action, TickIndex); break;
 			case EActionType::Attack:     TickAttack(Pawn, Action, TickIndex);     break;
 			case EActionType::TakeLoot:   TickTakeLoot(Pawn, Action, TickIndex);   break;
+			case EActionType::TalkMove:   TickTalkMove(Pawn, Action, TickIndex);   break;
 			default: break;
 		}
 
@@ -115,6 +120,16 @@ void URogueyActionManager::SetActorAction(ARogueyPawn* Pawn, AActor* Target, FNa
 	{
 		FString Text = Interactable->GetExamineText();
 		Pawn->ShowSpeechBubble(Text);
+	}
+	else if (ActionId == RogueyActions::TalkTo)
+	{
+		if (ARogueyNpc* Npc = Cast<ARogueyNpc>(Target))
+			SetTalkAction(Pawn, Npc);
+	}
+	else if (ActionId == RogueyActions::Enter)
+	{
+		if (ARogueyPortal* Portal = Cast<ARogueyPortal>(Target))
+			Portal->TryEnter(Pawn);
 	}
 }
 
@@ -316,6 +331,60 @@ FIntVector2 URogueyActionManager::FindBestAttackTile(FIntVector2 AOrigin, FIntPo
 int32 URogueyActionManager::ChebyshevDist(FIntVector2 A, FIntVector2 B)
 {
 	return FMath::Max(FMath::Abs(A.X - B.X), FMath::Abs(A.Y - B.Y));
+}
+
+// ---------------------------------------------------------------------------
+// Talk-to
+// ---------------------------------------------------------------------------
+
+void URogueyActionManager::SetTalkAction(ARogueyPawn* Pawn, ARogueyPawn* Target)
+{
+	if (!IsValid(Pawn) || !IsValid(Target)) return;
+
+	ClearAction(Pawn);
+
+	FRogueyPendingAction Action;
+	Action.Type        = EActionType::TalkMove;
+	Action.TargetActor = Target;
+	PendingActions.Add(Pawn, Action);
+
+	if (!IsInAttackRange(Pawn->GetTileCoord(), Pawn->TileExtent, Target->GetTileCoord(), Target->TileExtent, 1, false))
+		RequestMoveTowardTarget(Pawn, Target);
+}
+
+void URogueyActionManager::TickTalkMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex)
+{
+	ARogueyPawn* Target = Cast<ARogueyPawn>(Action.TargetActor.Get());
+	if (!IsValid(Target))
+	{
+		MovementManager->CancelMove(Pawn);
+		Action.Clear();
+		return;
+	}
+
+	if (!IsInAttackRange(Pawn->GetTileCoord(), Pawn->TileExtent, Target->GetTileCoord(), Target->TileExtent, 1, false))
+	{
+		FIntVector2 TargetCurrentTile = Target->GetTileCoord();
+		if (Action.LastKnownTargetTile != TargetCurrentTile || !MovementManager->HasPendingMove(Pawn))
+		{
+			Action.LastKnownTargetTile = TargetCurrentTile;
+			RequestMoveTowardTarget(Pawn, Target);
+		}
+		return;
+	}
+
+	// Adjacent — open dialogue on the owning client
+	MovementManager->CancelMove(Pawn);
+	Action.Clear();
+
+	if (ARogueyPlayerController* PC = Cast<ARogueyPlayerController>(Pawn->GetController()))
+	{
+		URogueyNpcRegistry* NpcReg = URogueyNpcRegistry::Get(Pawn);
+		const ARogueyNpc*   Npc    = Cast<ARogueyNpc>(Target);
+		const FRogueyNpcRow* Row   = (NpcReg && Npc) ? NpcReg->FindNpc(Npc->NpcTypeId) : nullptr;
+		if (Row && !Row->DialogueStartNodeId.IsNone())
+			PC->Client_OpenDialogue(Row->DialogueStartNodeId, Row->NpcName);
+	}
 }
 
 // ---------------------------------------------------------------------------

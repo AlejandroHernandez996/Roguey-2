@@ -48,6 +48,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> TabInvAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> DialogueContinueAction;
+
+	UFUNCTION(Client, Reliable)
+	void Client_OpenDialogue(FName NodeId, const FString& NpcName);
+
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float CameraZoomSpeed = 100.f;
 
@@ -78,6 +84,7 @@ private:
 	void OnTabStats(const FInputActionValue& Value);
 	void OnTabEquip(const FInputActionValue& Value);
 	void OnTabInv(const FInputActionValue& Value);
+	void OnDialogueContinue(const FInputActionValue& Value);
 
 	void HandleRightClick();
 	void HandleDevPanelLeftClick(const struct FDevPanelHit& Hit);
@@ -98,6 +105,7 @@ private:
 	bool bMenuWasOpenOnPress       = false;
 	bool bDevPanelClickHandled     = false;
 	bool bSpawnToolClickHandled    = false;
+	bool bDialogueClickHandled     = false;
 
 	// Inventory drag state
 	int32 InvDragSourceSlot = -1;   // -1 = no drag in progress

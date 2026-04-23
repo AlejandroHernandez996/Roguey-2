@@ -59,6 +59,8 @@ private:
 	void TickAttack(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
 	void TickAttackMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
 	void TickTakeLoot(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
+	void SetTalkAction(ARogueyPawn* Pawn, ARogueyPawn* Target);
+	void TickTalkMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
 
 	void ProcessConsumeQueue(ARogueyPawn* Pawn, TArray<int32>& Slots);
 	void TickStatBuffs();

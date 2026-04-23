@@ -262,6 +262,12 @@ void ARogueyPawn::Server_SwapInventorySlots_Implementation(int32 SlotA, int32 Sl
 	Inventory.Swap(SlotA, SlotB);
 }
 
+void ARogueyPawn::Server_SetDialogueFlag_Implementation(FName Flag)
+{
+	if (Flag.IsNone() || DialogueFlags.Contains(Flag)) return;
+	DialogueFlags.Add(Flag);
+}
+
 void ARogueyPawn::Server_DropFromInventory_Implementation(int32 InvSlotIndex)
 {
 	if (!Inventory.IsValidIndex(InvSlotIndex) || Inventory[InvSlotIndex].IsEmpty()) return;
@@ -326,4 +332,5 @@ void ARogueyPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ARogueyPawn, SpeechBubbleCounter);
 	DOREPLIFETIME(ARogueyPawn, Inventory);
 	DOREPLIFETIME(ARogueyPawn, ReplicatedEquipment);
+	DOREPLIFETIME_CONDITION(ARogueyPawn, DialogueFlags, COND_OwnerOnly);
 }

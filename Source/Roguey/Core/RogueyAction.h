@@ -11,6 +11,7 @@ enum class EActionType : uint8
 	Attack,
 	AttackMove,
 	TakeLoot,  // walk to ground item tile then pick up
+	TalkMove,  // walk to NPC until adjacent, then open dialogue on the client
 };
 
 // Describes a single action exposed by an interactable object.

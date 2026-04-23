@@ -10,6 +10,7 @@ enum class ENpcBehavior : uint8
 	Passive    UMETA(DisplayName = "Passive"),
 	Aggressive UMETA(DisplayName = "Aggressive"),
 	Defensive  UMETA(DisplayName = "Defensive"),
+	Friendly   UMETA(DisplayName = "Friendly"),
 };
 
 // One row per NPC type in DT_Npcs. Row name = NpcTypeId (e.g. "goblin").
@@ -62,4 +63,8 @@ struct FRogueyNpcRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC|Loot")
 	int32 MaxLootRolls = 2;
+
+	// Row name of the opening dialogue node in DT_Dialogue. NAME_None = no dialogue.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NPC|Dialogue")
+	FName DialogueStartNodeId;
 };

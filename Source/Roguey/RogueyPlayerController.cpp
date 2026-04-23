@@ -90,6 +90,7 @@ void ARogueyPlayerController::SetupInputComponent()
 		if (TabStatsAction) EIC->BindAction(TabStatsAction, ETriggerEvent::Started, this, &ARogueyPlayerController::OnTabStats);
 		if (TabEquipAction) EIC->BindAction(TabEquipAction, ETriggerEvent::Started, this, &ARogueyPlayerController::OnTabEquip);
 		if (TabInvAction)   EIC->BindAction(TabInvAction,   ETriggerEvent::Started, this, &ARogueyPlayerController::OnTabInv);
+		if (DialogueContinueAction) EIC->BindAction(DialogueContinueAction, ETriggerEvent::Started, this, &ARogueyPlayerController::OnDialogueContinue);
 	}
 }
 
@@ -161,9 +162,28 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 		}
 	}
 
-	// Escape — close menu
+	// Escape — close menu and dialogue
 	if (WasInputKeyJustPressed(EKeys::Escape) && HUD)
+	{
 		HUD->CloseContextMenu();
+		HUD->CloseDialogue();
+	}
+
+	// Number keys 1-5 — select dialogue choice
+	if (HUD && HUD->IsDialogueOpen())
+	{
+		static const FKey ChoiceKeys[] = {
+			EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five
+		};
+		for (int32 i = 0; i < 5; i++)
+		{
+			if (WasInputKeyJustPressed(ChoiceKeys[i]))
+			{
+				HUD->SelectDialogueChoice(i);
+				break;
+			}
+		}
+	}
 
 	if (!CachedTerrain)
 	{
@@ -429,6 +449,12 @@ void ARogueyPlayerController::OnSecondaryModifierCompleted(const FInputActionVal
 	bSecondaryModifierHeld = false;
 }
 
+void ARogueyPlayerController::OnDialogueContinue(const FInputActionValue& Value)
+{
+	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
+		HUD->AdvanceDialogue();
+}
+
 void ARogueyPlayerController::OnTabStats(const FInputActionValue& Value)
 {
 	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
@@ -452,6 +478,7 @@ void ARogueyPlayerController::OnClickCompleted(const FInputActionValue& Value)
 	bMenuWasOpenOnPress    = false;
 	bDevPanelClickHandled  = false;
 	bSpawnToolClickHandled = false;
+	bDialogueClickHandled  = false;
 
 	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
 
@@ -490,8 +517,37 @@ void ARogueyPlayerController::OnClickCompleted(const FInputActionValue& Value)
 void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 {
 	// Enhanced Input fires before PlayerTick, so we gate here directly.
-	// If the menu was open when this press started, eat the whole press (Started + Triggered).
 	ARogueyHUD* ClickHUD = Cast<ARogueyHUD>(GetHUD());
+
+	// Dialogue open — handle click then swallow
+	if (ClickHUD && ClickHUD->IsDialogueOpen())
+	{
+		if (!bDialogueClickHandled)
+		{
+			bDialogueClickHandled = true;
+			float MX, MY;
+			GetMousePosition(MX, MY);
+
+			if (!ClickHUD->IsMouseOverDialoguePanel(MX, MY))
+			{
+				ClickHUD->CloseDialogue(); // click outside panel = close
+			}
+			else
+			{
+				int32 ChoiceIdx = ClickHUD->HitTestDialogueChoices(MX, MY);
+				if (ChoiceIdx >= 0)
+					ClickHUD->SelectDialogueChoice(ChoiceIdx);
+				else if (ClickHUD->IsMouseOverDialogueContinue(MX, MY))
+					ClickHUD->AdvanceDialogue();
+				// click inside panel but not on a target — eat click, do nothing
+			}
+		}
+		return;
+	}
+
+	if (bDialogueClickHandled) return; // dialogue was handled this press — eat remaining Triggered events
+
+	// If the menu was open when this press started, eat the whole press (Started + Triggered).
 	if (ClickHUD && ClickHUD->IsContextMenuOpen())
 	{
 		bMenuWasOpenOnPress = true;
@@ -574,7 +630,14 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 		{
 			TArray<FRogueyActionDef> Actions = Cast<IRogueyInteractable>(HitActor)->GetActions();
 			if (Actions.Num() > 0)
+			{
+				if (Actions[0].ActionId == RogueyActions::TalkTo)
+				{
+					RogueyPawn->Server_RequestActorAction(HitActor, RogueyActions::TalkTo);
+					return;
+				}
 				RogueyPawn->Server_RequestActorAction(HitActor, Actions[0].ActionId);
+			}
 			return;
 		}
 	}
@@ -585,6 +648,14 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 	);
 
 	RogueyPawn->Server_RequestMoveTo(TargetTile, !bSecondaryModifierHeld);
+}
+
+// ── Dialogue ──────────────────────────────────────────────────────────────────
+
+void ARogueyPlayerController::Client_OpenDialogue_Implementation(FName NodeId, const FString& NpcName)
+{
+	if (ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD()))
+		HUD->OpenDialogue(NodeId, NpcName);
 }
 
 // ── Context menu ──────────────────────────────────────────────────────────────
@@ -918,7 +989,12 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 	// World interactable action
 	AActor* Target = Entry.TargetActor.Get();
 	if (IsValid(Target) && !Entry.ActionId.IsNone())
-		RogueyPawn->Server_RequestActorAction(Target, Entry.ActionId);
+	{
+		if (Entry.ActionId == RogueyActions::TalkTo)
+			RogueyPawn->Server_RequestActorAction(Target, RogueyActions::TalkTo);
+		else
+			RogueyPawn->Server_RequestActorAction(Target, Entry.ActionId);
+	}
 }
 
 void ARogueyPlayerController::Server_DevGiveItem_Implementation(FName ItemId)

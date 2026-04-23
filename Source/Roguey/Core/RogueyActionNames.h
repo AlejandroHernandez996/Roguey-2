@@ -18,6 +18,12 @@ namespace RogueyActions
 	static const FName Equip  = "Equip";
 	static const FName Remove = "Remove";
 
+	// NPC interaction
+	static const FName TalkTo = "Talk-to";
+
+	// World objects
+	static const FName Enter  = "Enter";
+
 	// Dev
 	static const FName Spawn = "Spawn";
 	static const FName Give  = "Give";

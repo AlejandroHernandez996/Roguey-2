@@ -71,6 +71,13 @@ FString ARogueyNpc::GetExamineText() const
 
 TArray<FRogueyActionDef> ARogueyNpc::GetActions() const
 {
+	if (Behavior == ENpcBehavior::Friendly)
+	{
+		return {
+			{ RogueyActions::TalkTo,  NSLOCTEXT("Roguey", "ActionTalkTo",  "Talk-to") },
+			{ RogueyActions::Examine, NSLOCTEXT("Roguey", "ActionExamine", "Examine") },
+		};
+	}
 	return {
 		{ RogueyActions::Attack,  NSLOCTEXT("Roguey", "ActionAttack",  "Attack")  },
 		{ RogueyActions::Examine, NSLOCTEXT("Roguey", "ActionExamine", "Examine") },

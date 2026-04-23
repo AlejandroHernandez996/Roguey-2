@@ -4,6 +4,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Roguey/Core/RogueyPawn.h"
+#include "Roguey/Dialogue/RogueyDialogueRegistry.h"
 #include "Roguey/Core/RogueyPawnState.h"
 #include "Roguey/Items/RogueyEquipmentSlot.h"
 #include "Roguey/Items/RogueyItemRegistry.h"
@@ -26,8 +27,25 @@ void ARogueyHUD::DrawHUD()
 	DrawLootDropLabels();
 	DrawPlayerHP();
 	DrawTargetPanel();
-	if (bDevPanelOpen)  DrawDevPanel();
-	if (bSpawnToolOpen) DrawSpawnTool();
+	if (bDevPanelOpen)    DrawDevPanel();
+	if (bSpawnToolOpen)   DrawSpawnTool();
+
+	// Tick dialogue flash timer — fires deferred advance/select after visual feedback
+	if (Dialogue.bOpen && Dialogue.FlashIndex != -2)
+	{
+		Dialogue.FlashTimer -= DeltaSeconds;
+		if (Dialogue.FlashTimer <= 0.f)
+		{
+			int32 Idx = Dialogue.FlashIndex;
+			Dialogue.FlashIndex = -2;
+			if (Idx == -1)
+				DoAdvanceDialogue();
+			else if (Dialogue.VisibleChoiceIndices.IsValidIndex(Idx))
+				DoSelectDialogueChoice(Dialogue.VisibleChoiceIndices[Idx]);
+		}
+	}
+
+	if (Dialogue.bOpen)   DrawDialoguePanel();
 	DrawContextMenu(); // always last — sits on top of everything
 
 #if ENABLE_DRAW_DEBUG
@@ -795,6 +813,245 @@ void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
 		if (DragItem.Quantity > 1)
 			DrawText(FString::FromInt(DragItem.Quantity), FLinearColor(0.f, 1.f, 0.f, 0.85f), DX + 2.f, DY + 2.f, F, 0.75f);
 	}
+}
+
+// ── Dialogue ──────────────────────────────────────────────────────────────────
+
+void ARogueyHUD::OpenDialogue(FName StartNodeId, const FString& NpcName)
+{
+	Dialogue.bOpen         = true;
+	Dialogue.CurrentNodeId = StartNodeId;
+	Dialogue.NpcName       = NpcName;
+	Dialogue.ChoiceRects.Empty();
+}
+
+void ARogueyHUD::CloseDialogue()
+{
+	Dialogue.bOpen = false;
+	Dialogue.ChoiceRects.Empty();
+}
+
+void ARogueyHUD::AdvanceDialogue()
+{
+	if (!Dialogue.bOpen || Dialogue.FlashIndex != -2) return;
+
+	URogueyDialogueRegistry* Reg = URogueyDialogueRegistry::Get(this);
+	const FRogueyDialogueNode* Node = Reg ? Reg->FindNode(Dialogue.CurrentNodeId) : nullptr;
+	if (!Node || !Node->Choices.IsEmpty()) return; // ignored when choices are showing
+
+	Dialogue.FlashIndex = -1;
+	Dialogue.FlashTimer = 0.15f;
+}
+
+void ARogueyHUD::SelectDialogueChoice(int32 VisibleIndex)
+{
+	if (!Dialogue.bOpen || Dialogue.FlashIndex != -2) return;
+	if (!Dialogue.VisibleChoiceIndices.IsValidIndex(VisibleIndex)) return;
+
+	Dialogue.FlashIndex = VisibleIndex;
+	Dialogue.FlashTimer = 0.15f;
+}
+
+void ARogueyHUD::DoAdvanceDialogue()
+{
+	URogueyDialogueRegistry* Reg = URogueyDialogueRegistry::Get(this);
+	const FRogueyDialogueNode* Node = Reg ? Reg->FindNode(Dialogue.CurrentNodeId) : nullptr;
+	if (!Node || Node->NextNodeId.IsNone()) { CloseDialogue(); return; }
+	Dialogue.CurrentNodeId = Node->NextNodeId;
+}
+
+void ARogueyHUD::DoSelectDialogueChoice(int32 RawIndex)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	ARogueyPawn* Pawn = PC ? Cast<ARogueyPawn>(PC->GetPawn()) : nullptr;
+
+	URogueyDialogueRegistry* Reg = URogueyDialogueRegistry::Get(this);
+	const FRogueyDialogueNode* Node = Reg ? Reg->FindNode(Dialogue.CurrentNodeId) : nullptr;
+	if (!Node || !Node->Choices.IsValidIndex(RawIndex)) return;
+
+	const FRogueyDialogueChoice& Choice = Node->Choices[RawIndex];
+	if (!Choice.SetsFlag.IsNone() && Pawn)
+		Pawn->Server_SetDialogueFlag(Choice.SetsFlag);
+
+	if (Choice.NextNodeId.IsNone()) { CloseDialogue(); return; }
+	Dialogue.CurrentNodeId = Choice.NextNodeId;
+}
+
+int32 ARogueyHUD::HitTestDialogueChoices(float MX, float MY) const
+{
+	for (int32 i = 0; i < Dialogue.ChoiceRects.Num(); i++)
+	{
+		const FHitRect& R = Dialogue.ChoiceRects[i];
+		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
+			return i;
+	}
+	return -1;
+}
+
+void ARogueyHUD::DrawDialoguePanel()
+{
+	if (!Canvas) return;
+
+	APlayerController* PC = GetOwningPlayerController();
+	ARogueyPawn* Pawn = PC ? Cast<ARogueyPawn>(PC->GetPawn()) : nullptr;
+
+	URogueyDialogueRegistry* Reg = URogueyDialogueRegistry::Get(this);
+	const FRogueyDialogueNode* Node = Reg ? Reg->FindNode(Dialogue.CurrentNodeId) : nullptr;
+
+	Dialogue.ChoiceRects.Empty();
+	Dialogue.VisibleChoiceIndices.Empty();
+	Dialogue.bHasContinue = false;
+
+	UFont* F = Font();
+
+	const float PanelY = Canvas->SizeY - DialoguePanelH;
+	const float PanelW = Canvas->SizeX;
+	Dialogue.PanelY = PanelY;
+
+	const FLinearColor BgColor(0.04f, 0.04f, 0.04f, 0.96f);
+	const FLinearColor BorderColor(0.55f, 0.48f, 0.22f, 1.f);
+	const FLinearColor NameColor(0.9f, 0.75f, 0.2f, 1.f);
+	const FLinearColor TextColor(1.f, 1.f, 1.f, 1.f);
+	const FLinearColor ChoiceColor(0.6f, 0.85f, 1.f, 1.f);
+	const FLinearColor ChoiceHover(1.f, 1.f, 1.f, 1.f);
+	const FLinearColor ContinueColor(0.6f, 0.6f, 0.6f, 1.f);
+
+	// Background + border
+	DrawRect(BgColor,     0.f,   PanelY,              PanelW, DialoguePanelH);
+	DrawRect(BorderColor, 0.f,   PanelY,              PanelW, 1.f);
+	DrawRect(BorderColor, 0.f,   PanelY,              1.f,    DialoguePanelH);
+	DrawRect(BorderColor, PanelW - 1.f, PanelY,       1.f,    DialoguePanelH);
+
+	// Portrait area (placeholder rect — texture assigned later)
+	const float PortraitX = DialoguePadX;
+	const float PortraitY = PanelY + DialoguePadY;
+	const float PortraitH = DialoguePanelH - DialoguePadY * 2.f;
+	DrawRect(FLinearColor(0.1f, 0.1f, 0.12f, 1.f), PortraitX, PortraitY, DialoguePortraitW, PortraitH);
+	DrawRect(BorderColor, PortraitX,                     PortraitY,             DialoguePortraitW, 1.f);
+	DrawRect(BorderColor, PortraitX,                     PortraitY + PortraitH, DialoguePortraitW, 1.f);
+	DrawRect(BorderColor, PortraitX,                     PortraitY,             1.f, PortraitH);
+	DrawRect(BorderColor, PortraitX + DialoguePortraitW, PortraitY,             1.f, PortraitH);
+
+	// Text area bounds
+	const float TextX  = PortraitX + DialoguePortraitW + DialoguePadX;
+	const float TextY  = PanelY + DialoguePadY;
+	const float TextW  = PanelW - TextX - DialoguePadX;
+
+	// NPC name
+	const FString& DisplayName = Node
+		? (Node->SpeakerName.IsEmpty() ? Dialogue.NpcName : Node->SpeakerName.ToString())
+		: Dialogue.NpcName;
+
+	float NW, NH;
+	GetTextSize(DisplayName, NW, NH, F, 1.1f);
+	DrawText(DisplayName, NameColor, TextX, TextY, F, 1.1f);
+
+	if (!Node)
+	{
+		DrawText(TEXT("..."), TextColor, TextX, TextY + NH + 4.f, F, 1.0f);
+		return;
+	}
+
+	// Dialogue text with manual word-wrap
+	const FString BodyText = Node->DialogueText.ToString();
+	const float   LineH    = 18.f;
+	float         CurLineX = TextX;
+	float         CurLineY = TextY + NH + 6.f;
+	FString        CurLine;
+
+	auto FlushLine = [&]()
+	{
+		if (!CurLine.IsEmpty())
+		{
+			DrawText(CurLine.TrimEnd(), TextColor, TextX, CurLineY, F, 1.0f);
+			CurLineY += LineH;
+			CurLine.Empty();
+			CurLineX = TextX;
+		}
+	};
+
+	TArray<FString> Words;
+	BodyText.ParseIntoArray(Words, TEXT(" "), true);
+	for (const FString& Word : Words)
+	{
+		FString Candidate = CurLine.IsEmpty() ? Word : CurLine + TEXT(" ") + Word;
+		float WW, WH;
+		GetTextSize(Candidate, WW, WH, F, 1.0f);
+		if (CurLineX + WW > TextX + TextW && !CurLine.IsEmpty())
+		{
+			FlushLine();
+			CurLine = Word;
+		}
+		else
+		{
+			CurLine = Candidate;
+		}
+	}
+	FlushLine();
+
+	// Mouse position for hover
+	float MX = 0.f, MY = 0.f;
+	if (PC) PC->GetMousePosition(MX, MY);
+
+	const FLinearColor FlashColor(1.f, 1.f, 1.f, 1.f);
+
+	if (Node->Choices.IsEmpty())
+	{
+		// Linear node — show continue prompt
+		const FString Prompt = Node->NextNodeId.IsNone()
+			? TEXT("Click to close")
+			: TEXT("Click to continue");
+		const float PromptY = Canvas->SizeY - DialoguePadY - 16.f;
+		float PW, PH;
+		GetTextSize(Prompt, PW, PH, F, 0.85f);
+		const bool bFlashing = (Dialogue.FlashIndex == -1);
+		DrawText(Prompt, bFlashing ? FlashColor : ContinueColor, TextX, PromptY, F, 0.85f);
+		Dialogue.ContinueRect = { TextX, PromptY, PW, PH };
+		Dialogue.bHasContinue = true;
+	}
+	else
+	{
+		// Branch node — draw numbered choices (visible index = 1-N)
+		float ChoiceY = CurLineY + 4.f;
+		int32 VisibleNum = 0;
+		for (int32 i = 0; i < Node->Choices.Num(); i++)
+		{
+			const FRogueyDialogueChoice& Choice = Node->Choices[i];
+
+			// Gate on required flag
+			if (!Choice.RequiredFlag.IsNone() && Pawn && !Pawn->HasDialogueFlag(Choice.RequiredFlag))
+				continue;
+
+			const FString ChoiceStr = FString::Printf(TEXT("%d. %s"), VisibleNum + 1, *Choice.ChoiceText.ToString());
+			const bool bHovered   = (MX >= TextX && MX <= TextX + TextW && MY >= ChoiceY && MY <= ChoiceY + DialogueChoiceH);
+			const bool bFlashing  = (Dialogue.FlashIndex == VisibleNum);
+
+			if (bHovered && !bFlashing)
+				DrawRect(FLinearColor(1.f, 1.f, 1.f, 0.06f), TextX, ChoiceY, TextW, DialogueChoiceH);
+			if (bFlashing)
+				DrawRect(FLinearColor(1.f, 1.f, 1.f, 0.12f), TextX, ChoiceY, TextW, DialogueChoiceH);
+
+			FLinearColor TextCol = bFlashing ? FlashColor : (bHovered ? ChoiceHover : ChoiceColor);
+			DrawText(ChoiceStr, TextCol, TextX, ChoiceY + (DialogueChoiceH - 16.f) * 0.5f, F, 1.0f);
+
+			Dialogue.ChoiceRects.Add({ TextX, ChoiceY, TextW, DialogueChoiceH });
+			Dialogue.VisibleChoiceIndices.Add(i);
+			ChoiceY += DialogueChoiceH;
+			VisibleNum++;
+		}
+	}
+}
+
+bool ARogueyHUD::IsMouseOverDialoguePanel(float MX, float MY) const
+{
+	return Dialogue.bOpen && MY >= Dialogue.PanelY;
+}
+
+bool ARogueyHUD::IsMouseOverDialogueContinue(float MX, float MY) const
+{
+	if (!Dialogue.bHasContinue) return false;
+	const FHitRect& R = Dialogue.ContinueRect;
+	return MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H;
 }
 
 // ── Spawn Tool (separate overlay, opened by `) ────────────────────────────────

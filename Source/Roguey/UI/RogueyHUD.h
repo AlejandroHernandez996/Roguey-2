@@ -105,6 +105,16 @@ public:
 	FDevPanelHit HitTestDevPanel(float MX, float MY) const;
 	bool         IsMouseOverDevPanel(float MX, float MY) const;
 
+	// ── Dialogue API ──────────────────────────────────────────────────────────
+	void  OpenDialogue(FName StartNodeId, const FString& NpcName);
+	void  CloseDialogue();
+	bool  IsDialogueOpen()   const { return Dialogue.bOpen; }
+	void  AdvanceDialogue();                    // Space / click-continue
+	void  SelectDialogueChoice(int32 Index);    // Number key / click on choice row
+	int32 HitTestDialogueChoices(float MX, float MY) const;
+	bool  IsMouseOverDialoguePanel(float MX, float MY) const;
+	bool  IsMouseOverDialogueContinue(float MX, float MY) const;
+
 	// ── Spawn tool API ────────────────────────────────────────────────────────
 	bool  bSpawnToolOpen     = false;
 	int32 SpawnToolActiveTab = 0; // 0=NPCs 1=Items
@@ -118,6 +128,9 @@ public:
 
 private:
 	void DrawContextMenu();
+	void DrawDialoguePanel();
+	void DoAdvanceDialogue();
+	void DoSelectDialogueChoice(int32 RawIndex);
 	void DrawTargetPanel();
 	void DrawPlayerHP();
 	void DrawHealthBars();
@@ -137,6 +150,9 @@ private:
 	TArray<FActiveHitSplat>     ActiveSplats;
 	TArray<FActiveSpeechBubble> ActiveBubbles;
 
+	// Hit-test cache — set during DrawHUD, valid outside it
+	struct FHitRect { float X, Y, W, H; };
+
 	struct FActiveContextMenu
 	{
 		bool  bOpen = false;
@@ -145,8 +161,20 @@ private:
 		TArray<FContextMenuEntry> Entries;
 	} ContextMenu;
 
-	// Hit-test cache — set during DrawHUD, valid outside it
-	struct FHitRect { float X, Y, W, H; };
+	struct FActiveDialogue
+	{
+		bool    bOpen         = false;
+		FName   CurrentNodeId;
+		FString NpcName;
+		TArray<FHitRect> ChoiceRects;        // visible choices only, set each DrawHUD
+		TArray<int32>    VisibleChoiceIndices; // maps ChoiceRects[i] → Node->Choices raw index
+		FHitRect         ContinueRect  = {};
+		bool             bHasContinue  = false;
+		float            PanelY        = 0.f;
+		// Flash feedback: -2 = none, -1 = continue, >=0 = visible choice index
+		int32            FlashIndex    = -2;
+		float            FlashTimer    = 0.f;
+	} Dialogue;
 
 	// Dev panel cache
 	float DevPanelX = 0.f, DevPanelY = 0.f, DevPanelH = 0.f;
@@ -184,4 +212,10 @@ private:
 	static constexpr float SpawnToolW    = 280.f;
 	static constexpr float SpawnToolTabH = 26.f;
 	static constexpr float SpawnToolHdrH = 28.f;
+
+	static constexpr float DialoguePanelH    = 200.f;
+	static constexpr float DialoguePortraitW = 140.f;
+	static constexpr float DialoguePadX      = 12.f;
+	static constexpr float DialoguePadY      = 10.f;
+	static constexpr float DialogueChoiceH   = 22.f;
 };

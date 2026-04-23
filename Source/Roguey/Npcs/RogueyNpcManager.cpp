@@ -32,6 +32,8 @@ void URogueyNpcManager::RogueyTick(int32 TickIndex)
 
 void URogueyNpcManager::TickNpc(ARogueyNpc* Npc, int32 TickIndex)
 {
+	if (Npc->Behavior == ENpcBehavior::Friendly) return;
+
 	// Always drain LastAttacker — leaving it set causes target-switching and bounce loops.
 	if (Npc->LastAttacker.IsValid())
 	{

@@ -149,6 +149,19 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_SwapInventorySlots(int32 SlotA, int32 SlotB);
 
+	// Dialogue / quest flags — server authoritative, replicated to owning client only.
+	// Checked client-side to gate dialogue choices; set server-side via RPC.
+	UPROPERTY(ReplicatedUsing = OnRep_DialogueFlags)
+	TArray<FName> DialogueFlags;
+
+	UFUNCTION()
+	void OnRep_DialogueFlags() {}
+
+	bool HasDialogueFlag(FName Flag) const { return Flag.IsNone() || DialogueFlags.Contains(Flag); }
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetDialogueFlag(FName Flag);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 AttackRange = 1;
 
