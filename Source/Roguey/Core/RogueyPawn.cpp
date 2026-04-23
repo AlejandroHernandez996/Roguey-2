@@ -256,6 +256,12 @@ void ARogueyPawn::Server_UnequipToInventory_Implementation(EEquipmentSlot Slot)
 	RecalcEquipmentBonuses();
 }
 
+void ARogueyPawn::Server_SwapInventorySlots_Implementation(int32 SlotA, int32 SlotB)
+{
+	if (!Inventory.IsValidIndex(SlotA) || !Inventory.IsValidIndex(SlotB)) return;
+	Inventory.Swap(SlotA, SlotB);
+}
+
 void ARogueyPawn::Server_DropFromInventory_Implementation(int32 InvSlotIndex)
 {
 	if (!Inventory.IsValidIndex(InvSlotIndex) || Inventory[InvSlotIndex].IsEmpty()) return;

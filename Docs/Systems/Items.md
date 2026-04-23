@@ -40,6 +40,7 @@ Key fields by category:
 
 ```cpp
 const FRogueyItemRow* Row = URogueyItemRegistry::Get(WorldContext)->FindItem(ItemId);
+TArray<FName> AllIds = URogueyItemRegistry::Get(WorldContext)->GetAllItemIds(); // sorted alphabetically
 ```
 
 `ItemId` is always the DataTable **row name** (an `FName`). Never store display names as IDs.
@@ -58,6 +59,8 @@ Server RPCs:
 - `Server_EquipFromInventory(int32 InvSlotIndex)` — swaps item into equipment, previous equip returns to that slot
 - `Server_UnequipToInventory(EEquipmentSlot)` — moves item to first empty inventory slot
 - `Server_ConsumeFromInventory(int32 InvSlotIndex)` — queues food/potion consume for next game tick
+- `Server_SwapInventorySlots(int32 SlotA, int32 SlotB)` — swaps two inventory slots; used by drag-and-drop
+- `Server_DropFromInventory(int32 InvSlotIndex)` — removes item from slot and spawns an `ARogueyLootDrop` at the pawn's location
 
 ## Consume System (Food & Potions)
 

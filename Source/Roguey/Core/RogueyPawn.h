@@ -146,6 +146,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_DropFromInventory(int32 InvSlotIndex);
 
+	UFUNCTION(Server, Reliable)
+	void Server_SwapInventorySlots(int32 SlotA, int32 SlotB);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 AttackRange = 1;
 

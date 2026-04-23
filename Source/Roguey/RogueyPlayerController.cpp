@@ -103,6 +103,36 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 	if (WasInputKeyJustPressed(EKeys::Tab) && HUD)
 		HUD->bDevPanelOpen = !HUD->bDevPanelOpen;
 
+	// Minus — toggle spawn tool
+	if (WasInputKeyJustPressed(EKeys::Hyphen) && HUD)
+		HUD->bSpawnToolOpen = !HUD->bSpawnToolOpen;
+
+	// Inventory drag tracking
+	if (InvDragSourceSlot >= 0 && HUD)
+	{
+		InvDragHoldTime += DeltaTime;
+
+		float MX, MY;
+		GetMousePosition(MX, MY);
+
+		if (!bInvDragActive && InvDragHoldTime >= InvDragDelay)
+		{
+			const float Dist = FMath::Sqrt(FMath::Square(MX - InvDragStartX) + FMath::Square(MY - InvDragStartY));
+			if (Dist > InvDragMinPixels)
+			{
+				bInvDragActive    = true;
+				HUD->bInvDragging = true;
+				HUD->InvDragSlot  = InvDragSourceSlot;
+			}
+		}
+
+		if (bInvDragActive)
+		{
+			HUD->InvDragX = MX;
+			HUD->InvDragY = MY;
+		}
+	}
+
 	// Right-click — open (or close) context menu, or dev panel right-click
 	if (WasInputKeyJustPressed(EKeys::RightMouseButton) && !bRotatingCamera)
 	{
@@ -110,24 +140,24 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 		{
 			HUD->CloseContextMenu();
 		}
-		else if (HUD && HUD->bDevPanelOpen)
+		else
 		{
 			float MX, MY;
 			GetMousePosition(MX, MY);
-			if (HUD->IsMouseOverDevPanel(MX, MY))
+
+			const bool bOverDevPanel   = HUD && HUD->bDevPanelOpen   && HUD->IsMouseOverDevPanel(MX, MY);
+			const bool bOverSpawnTool  = HUD && HUD->bSpawnToolOpen  && HUD->IsMouseOverSpawnTool(MX, MY);
+
+			if (bOverDevPanel)
 			{
 				FDevPanelHit PanelHit = HUD->HitTestDevPanel(MX, MY);
 				if (PanelHit.Type != FDevPanelHit::EType::None && PanelHit.Type != FDevPanelHit::EType::Tab)
 					HandleDevPanelRightClick(PanelHit, MX, MY);
 			}
-			else
+			else if (!bOverSpawnTool)
 			{
 				HandleRightClick();
 			}
-		}
-		else
-		{
-			HandleRightClick();
 		}
 	}
 
@@ -198,6 +228,30 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 				HUD->TargetPart = TEXT("");
 			}
 		}
+		else if (HUD->bSpawnToolOpen && HUD->IsMouseOverSpawnTool(MX, MY))
+		{
+			FSpawnToolHit STHit = HUD->HitTestSpawnTool(MX, MY);
+			HUD->ActionPart = TEXT("");
+			HUD->TargetPart = TEXT("");
+
+			if (STHit.Type == FSpawnToolHit::EType::Entry)
+			{
+				if (HUD->SpawnToolActiveTab == 0 && HUD->SpawnToolNpcList.IsValidIndex(STHit.Index))
+				{
+					URogueyNpcRegistry* NpcReg = URogueyNpcRegistry::Get(this);
+					const FRogueyNpcRow* Row = NpcReg ? NpcReg->FindNpc(HUD->SpawnToolNpcList[STHit.Index]) : nullptr;
+					HUD->ActionPart = RogueyActions::Spawn.ToString();
+					HUD->TargetPart = Row ? Row->NpcName : HUD->SpawnToolNpcList[STHit.Index].ToString();
+				}
+				else if (HUD->SpawnToolActiveTab == 1 && HUD->SpawnToolItemList.IsValidIndex(STHit.Index))
+				{
+					URogueyItemRegistry* ItemReg = URogueyItemRegistry::Get(this);
+					const FRogueyItemRow* Row = ItemReg ? ItemReg->FindItem(HUD->SpawnToolItemList[STHit.Index]) : nullptr;
+					HUD->ActionPart = RogueyActions::Give.ToString();
+					HUD->TargetPart = Row ? Row->DisplayName : HUD->SpawnToolItemList[STHit.Index].ToString();
+				}
+			}
+		}
 		else if (HUD->bDevPanelOpen && HUD->IsMouseOverDevPanel(MX, MY))
 		{
 			// Dev panel hover — resolve action label from the hovered slot
@@ -234,15 +288,6 @@ void ARogueyPlayerController::PlayerTick(float DeltaTime)
 					HUD->ActionPart = RogueyActions::Remove.ToString();
 					HUD->TargetPart = Row ? Row->DisplayName : Item->ItemId.ToString();
 				}
-			}
-			else if (PanelHit.Type == FDevPanelHit::EType::NpcSpawn
-			         && HUD->DevSpawnNpcTypes.IsValidIndex(PanelHit.Index))
-			{
-				URogueyNpcRegistry* NpcReg = URogueyNpcRegistry::Get(this);
-				FName TypeId = HUD->DevSpawnNpcTypes[PanelHit.Index];
-				const FRogueyNpcRow* Row = NpcReg ? NpcReg->FindNpc(TypeId) : nullptr;
-				HUD->ActionPart = RogueyActions::Spawn.ToString();
-				HUD->TargetPart = Row ? Row->NpcName : TypeId.ToString();
 			}
 		}
 		else if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
@@ -404,8 +449,42 @@ void ARogueyPlayerController::OnTabInv(const FInputActionValue& Value)
 
 void ARogueyPlayerController::OnClickCompleted(const FInputActionValue& Value)
 {
-	bMenuWasOpenOnPress   = false;
-	bDevPanelClickHandled = false;
+	bMenuWasOpenOnPress    = false;
+	bDevPanelClickHandled  = false;
+	bSpawnToolClickHandled = false;
+
+	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
+
+	if (InvDragSourceSlot >= 0)
+	{
+		if (bInvDragActive)
+		{
+			// Commit drag: hit-test the slot under the mouse
+			if (HUD)
+			{
+				FDevPanelHit DropHit = HUD->HitTestDevPanel(HUD->InvDragX, HUD->InvDragY);
+				if (DropHit.Type == FDevPanelHit::EType::InvSlot && DropHit.Index != InvDragSourceSlot)
+				{
+					if (ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn()))
+						RogueyPawn->Server_SwapInventorySlots(InvDragSourceSlot, DropHit.Index);
+				}
+				HUD->bInvDragging = false;
+				HUD->InvDragSlot  = -1;
+			}
+		}
+		else
+		{
+			// Short click — perform the normal deferred action
+			FDevPanelHit FakeHit;
+			FakeHit.Type  = FDevPanelHit::EType::InvSlot;
+			FakeHit.Index = InvDragSourceSlot;
+			HandleDevPanelLeftClick(FakeHit);
+		}
+
+		InvDragSourceSlot = -1;
+		bInvDragActive    = false;
+		InvDragHoldTime   = 0.f;
+	}
 }
 
 void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
@@ -437,7 +516,38 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 		if (ClickHUD->IsMouseOverDevPanel(MX, MY))
 		{
 			bDevPanelClickHandled = true;
-			HandleDevPanelLeftClick(ClickHUD->HitTestDevPanel(MX, MY));
+			FDevPanelHit PanelHit = ClickHUD->HitTestDevPanel(MX, MY);
+
+			// Inventory slots with items: begin drag-pending instead of acting immediately
+			ARogueyPawn* DragPawn = Cast<ARogueyPawn>(GetPawn());
+			if (PanelHit.Type == FDevPanelHit::EType::InvSlot
+			    && DragPawn && DragPawn->Inventory.IsValidIndex(PanelHit.Index)
+			    && !DragPawn->Inventory[PanelHit.Index].IsEmpty())
+			{
+				InvDragSourceSlot = PanelHit.Index;
+				GetMousePosition(InvDragStartX, InvDragStartY);
+				bInvDragActive  = false;
+				InvDragHoldTime = 0.f;
+			}
+			else
+			{
+				InvDragSourceSlot = -1;
+				HandleDevPanelLeftClick(PanelHit);
+			}
+			return;
+		}
+	}
+
+	// Spawn tool left-click interception
+	if (bSpawnToolClickHandled) return;
+	if (ClickHUD && ClickHUD->bSpawnToolOpen)
+	{
+		float MX, MY;
+		GetMousePosition(MX, MY);
+		if (ClickHUD->IsMouseOverSpawnTool(MX, MY))
+		{
+			bSpawnToolClickHandled = true;
+			HandleSpawnToolLeftClick(ClickHUD->HitTestSpawnTool(MX, MY));
 			return;
 		}
 	}
@@ -446,6 +556,10 @@ void ARogueyPlayerController::OnClickTriggered(const FInputActionValue& Value)
 
 	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
 	if (!RogueyPawn) return;
+
+	// Clear Use selection whenever the player clicks on the world
+	if (ARogueyHUD* ClearHUD = Cast<ARogueyHUD>(GetHUD()))
+		ClearHUD->InvUseSelectedSlot = -1;
 
 	FHitResult Hit;
 	FCollisionQueryParams Params;
@@ -552,6 +666,8 @@ void ARogueyPlayerController::HandleDevPanelLeftClick(const FDevPanelHit& Hit)
 	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
 	if (!HUD) return;
 
+	HUD->InvUseSelectedSlot = -1;
+
 	if (Hit.Type == FDevPanelHit::EType::Tab)
 	{
 		HUD->SetActiveTab(Hit.Index);
@@ -577,8 +693,10 @@ void ARogueyPlayerController::HandleDevPanelLeftClick(const FDevPanelHit& Hit)
 				         || Row->Type == ERogueyItemType::FoodQuick
 				         || Row->Type == ERogueyItemType::Potion))
 					RogueyPawn->Server_ConsumeFromInventory(Hit.Index);
-				else
+				else if (Row && Row->IsEquippable())
 					RogueyPawn->Server_EquipFromInventory(Hit.Index);
+				else
+					HUD->InvUseSelectedSlot = Hit.Index;
 			}
 		}
 	}
@@ -586,10 +704,30 @@ void ARogueyPlayerController::HandleDevPanelLeftClick(const FDevPanelHit& Hit)
 	{
 		RogueyPawn->Server_UnequipToInventory(Hit.EquipSlot);
 	}
-	else if (Hit.Type == FDevPanelHit::EType::NpcSpawn)
+}
+
+void ARogueyPlayerController::HandleSpawnToolLeftClick(const FSpawnToolHit& Hit)
+{
+	ARogueyHUD* HUD = Cast<ARogueyHUD>(GetHUD());
+	if (!HUD) return;
+
+	if (Hit.Type == FSpawnToolHit::EType::Tab)
 	{
-		if (HUD && HUD->DevSpawnNpcTypes.IsValidIndex(Hit.Index))
-			Server_DevSpawnNpc(HUD->DevSpawnNpcTypes[Hit.Index]);
+		HUD->SpawnToolActiveTab = Hit.Index;
+		return;
+	}
+
+	if (Hit.Type != FSpawnToolHit::EType::Entry) return;
+
+	if (HUD->SpawnToolActiveTab == 0)
+	{
+		if (HUD->SpawnToolNpcList.IsValidIndex(Hit.Index))
+			Server_DevSpawnNpc(HUD->SpawnToolNpcList[Hit.Index]);
+	}
+	else
+	{
+		if (HUD->SpawnToolItemList.IsValidIndex(Hit.Index))
+			Server_DevGiveItem(HUD->SpawnToolItemList[Hit.Index]);
 	}
 }
 
@@ -608,22 +746,6 @@ void ARogueyPlayerController::HandleDevPanelRightClick(const FDevPanelHit& Hit, 
 		const FRogueyItem&    Item = RogueyPawn->Inventory[Hit.Index];
 		const FRogueyItemRow* Row  = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
 		FString TargetName = Row ? Row->DisplayName : Item.ItemId.ToString();
-
-		const bool bHasSpecificUse = Row && (Row->IsEquippable()
-			|| Row->Type == ERogueyItemType::Food3Tick
-			|| Row->Type == ERogueyItemType::FoodQuick
-			|| Row->Type == ERogueyItemType::Potion);
-
-		if (!bHasSpecificUse)
-		{
-			FContextMenuEntry E;
-			E.ActionText   = RogueyActions::Use.ToString();
-			E.TargetText   = TargetName;
-			E.ActionColor  = FLinearColor::White;
-			E.InvSlotIndex = Hit.Index;
-			E.ActionId     = RogueyActions::Use;
-			Entries.Add(E);
-		}
 
 		if (Row && Row->IsEquippable())
 		{
@@ -654,6 +776,17 @@ void ARogueyPlayerController::HandleDevPanelRightClick(const FDevPanelHit& Hit, 
 			E.ActionColor  = ActionColor(RogueyActions::Drink);
 			E.InvSlotIndex = Hit.Index;
 			E.ActionId     = RogueyActions::Drink;
+			Entries.Add(E);
+		}
+
+		// Use — always present, after primary actions
+		{
+			FContextMenuEntry E;
+			E.ActionText   = RogueyActions::Use.ToString();
+			E.TargetText   = TargetName;
+			E.ActionColor  = FLinearColor::White;
+			E.InvSlotIndex = Hit.Index;
+			E.ActionId     = RogueyActions::Use;
 			Entries.Add(E);
 		}
 
@@ -752,7 +885,8 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 		}
 		else if (Entry.ActionId == RogueyActions::Use)
 		{
-			// placeholder — misc item "Use" has no effect yet
+			if (ARogueyHUD* UseHUD = Cast<ARogueyHUD>(GetHUD()))
+				UseHUD->InvUseSelectedSlot = Entry.InvSlotIndex;
 		}
 		else
 		{
@@ -785,6 +919,43 @@ void ARogueyPlayerController::ExecuteContextEntry(const FContextMenuEntry& Entry
 	AActor* Target = Entry.TargetActor.Get();
 	if (IsValid(Target) && !Entry.ActionId.IsNone())
 		RogueyPawn->Server_RequestActorAction(Target, Entry.ActionId);
+}
+
+void ARogueyPlayerController::Server_DevGiveItem_Implementation(FName ItemId)
+{
+	ARogueyPawn* RogueyPawn = Cast<ARogueyPawn>(GetPawn());
+	if (!RogueyPawn) return;
+
+	URogueyItemRegistry* Reg = URogueyItemRegistry::Get(this);
+	if (!Reg) return;
+
+	const FRogueyItemRow* Row = Reg->FindItem(ItemId);
+	if (!Row) return;
+
+	// Stack into existing slot first if stackable
+	if (Row->bStackable)
+	{
+		for (FRogueyItem& Slot : RogueyPawn->Inventory)
+		{
+			if (Slot.ItemId == ItemId)
+			{
+				Slot.Quantity = FMath::Min(Slot.Quantity + 1, Row->MaxStack);
+				return;
+			}
+		}
+	}
+
+	// Place in first empty slot
+	for (FRogueyItem& Slot : RogueyPawn->Inventory)
+	{
+		if (Slot.IsEmpty())
+		{
+			Slot.ItemId   = ItemId;
+			Slot.Quantity = 1;
+			return;
+		}
+	}
+	// Inventory full — silently ignore (dev tool)
 }
 
 void ARogueyPlayerController::Server_DevSpawnNpc_Implementation(FName NpcTypeId)

@@ -26,7 +26,8 @@ void ARogueyHUD::DrawHUD()
 	DrawLootDropLabels();
 	DrawPlayerHP();
 	DrawTargetPanel();
-	if (bDevPanelOpen) DrawDevPanel();
+	if (bDevPanelOpen)  DrawDevPanel();
+	if (bSpawnToolOpen) DrawSpawnTool();
 	DrawContextMenu(); // always last — sits on top of everything
 
 #if ENABLE_DRAW_DEBUG
@@ -395,10 +396,9 @@ void ARogueyHUD::DrawLootDropLabels()
 
 void ARogueyHUD::SetActiveTab(int32 Index)
 {
-	ActiveTab = FMath::Clamp(Index, 0, 3);
+	ActiveTab = FMath::Clamp(Index, 0, 2);
 	DevSlotRects.Empty();
 	DevEquipSlotOrder.Empty();
-	DevSpawnNpcTypes.Empty();
 }
 
 bool ARogueyHUD::IsMouseOverDevPanel(float MX, float MY) const
@@ -414,7 +414,7 @@ FDevPanelHit ARogueyHUD::HitTestDevPanel(float MX, float MY) const
 	if (!IsMouseOverDevPanel(MX, MY)) return Result;
 
 	// Tab bar
-	for (int32 i = 0; i < 4; i++)
+	for (int32 i = 0; i < 3; i++)
 	{
 		const FHitRect& R = DevTabRects[i];
 		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
@@ -435,11 +435,6 @@ FDevPanelHit ARogueyHUD::HitTestDevPanel(float MX, float MY) const
 			{
 				Result.Type      = FDevPanelHit::EType::EquipSlot;
 				Result.EquipSlot = DevEquipSlotOrder.IsValidIndex(i) ? DevEquipSlotOrder[i] : EEquipmentSlot::Head;
-			}
-			else if (ActiveTab == 3)
-			{
-				Result.Type  = FDevPanelHit::EType::NpcSpawn;
-				Result.Index = i;
 			}
 			else
 			{
@@ -490,9 +485,9 @@ void ARogueyHUD::DrawDevPanel()
 	DrawRect(BorderColor,  PX,             PY,          1.f,       TotalH);
 	DrawRect(BorderColor,  PX + DevPanelW, PY,          1.f,       TotalH + 1.f);
 
-	static const TCHAR* TabLabels[] = { TEXT("Stats"), TEXT("Equip"), TEXT("Inv"), TEXT("Spawn") };
-	const float TabW = DevPanelW / 4.f;
-	for (int32 i = 0; i < 4; i++)
+	static const TCHAR* TabLabels[] = { TEXT("Stats"), TEXT("Equip"), TEXT("Inv") };
+	const float TabW = DevPanelW / 3.f;
+	for (int32 i = 0; i < 3; i++)
 	{
 		const float TX      = PX + i * TabW;
 		const bool  bActive = (ActiveTab == i);
@@ -512,7 +507,6 @@ void ARogueyHUD::DrawDevPanel()
 
 	DevSlotRects.Reset();
 	DevEquipSlotOrder.Reset();
-	DevSpawnNpcTypes.Reset();
 
 	const float ContentY = PY + DevTabH + 1.f;
 	switch (ActiveTab)
@@ -520,7 +514,6 @@ void ARogueyHUD::DrawDevPanel()
 		case 0: DrawDevTab_Stats(PX, ContentY, DevPanelW, F);     break;
 		case 1: DrawDevTab_Equipment(PX, ContentY, DevPanelW, F); break;
 		case 2: DrawDevTab_Inventory(PX, ContentY, DevPanelW, F); break;
-		case 3: DrawDevTab_Spawn(PX, ContentY, DevPanelW, F);     break;
 		default: break;
 	}
 }
@@ -704,8 +697,15 @@ void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
 	static constexpr int32 InvRows = 7;
 
 	const float GridW  = InvCols * DevSlotSize + (InvCols - 1) * DevSlotGap;
+	const float GridH  = InvRows * DevSlotSize + (InvRows - 1) * DevSlotGap;
 	const float StartX = PX + (PW - GridW) * 0.5f;
 	const float StartY = PY + DevPadY;
+
+	// Cache inventory area for drag clamping
+	InvAreaX = StartX;
+	InvAreaY = StartY;
+	InvAreaW = GridW;
+	InvAreaH = GridH;
 
 	const FLinearColor BorderColor(0.55f, 0.48f, 0.22f, 1.f);
 	const FLinearColor ItemColor(1.f, 0.85f, 0.1f, 1.f);
@@ -722,6 +722,7 @@ void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
 			const float SY  = StartY + Row * (DevSlotSize + DevSlotGap);
 
 			const FRogueyItem& Item = Pawn->Inventory.IsValidIndex(Idx) ? Pawn->Inventory[Idx] : FRogueyItem();
+			const bool bIsBeingDragged = (bInvDragging && Idx == InvDragSlot);
 
 			const FLinearColor SlotBg = Item.IsEmpty()
 				? FLinearColor(0.08f, 0.08f, 0.1f,  1.f)
@@ -733,7 +734,17 @@ void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
 			DrawRect(BorderColor,  SX,               SY,               1.f,         DevSlotSize);
 			DrawRect(BorderColor,  SX + DevSlotSize, SY,               1.f,         DevSlotSize + 1.f);
 
-			if (!Item.IsEmpty())
+			// White outline for "Use" selected slot
+			if (Idx == InvUseSelectedSlot)
+			{
+				DrawRect(FLinearColor::White, SX,                      SY,                      DevSlotSize, 2.f);
+				DrawRect(FLinearColor::White, SX,                      SY + DevSlotSize - 2.f,  DevSlotSize, 2.f);
+				DrawRect(FLinearColor::White, SX,                      SY,                      2.f,         DevSlotSize);
+				DrawRect(FLinearColor::White, SX + DevSlotSize - 2.f,  SY,                      2.f,         DevSlotSize);
+			}
+
+			// Draw item contents — dim the source slot while dragging it
+			if (!Item.IsEmpty() && !bIsBeingDragged)
 			{
 				const FRogueyItemRow* ItemRow = Registry ? Registry->FindItem(Item.ItemId) : nullptr;
 				if (ItemRow && ItemRow->Icon)
@@ -757,43 +768,176 @@ void ARogueyHUD::DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F)
 			DevSlotRects.Add({ SX, SY, DevSlotSize, DevSlotSize });
 		}
 	}
+
+	// Draw dragged item icon following the mouse, clamped to the inventory area
+	if (bInvDragging && Pawn->Inventory.IsValidIndex(InvDragSlot) && !Pawn->Inventory[InvDragSlot].IsEmpty())
+	{
+		const FRogueyItem&    DragItem = Pawn->Inventory[InvDragSlot];
+		const FRogueyItemRow* DragRow  = Registry ? Registry->FindItem(DragItem.ItemId) : nullptr;
+
+		const float HalfSlot = DevSlotSize * 0.5f;
+		const float DX = FMath::Clamp(InvDragX - HalfSlot, InvAreaX, InvAreaX + InvAreaW - DevSlotSize);
+		const float DY = FMath::Clamp(InvDragY - HalfSlot, InvAreaY, InvAreaY + InvAreaH - DevSlotSize);
+
+		if (DragRow && DragRow->Icon)
+		{
+			DrawTexture(DragRow->Icon, DX, DY, DevSlotSize, DevSlotSize, 0.f, 0.f, 1.f, 1.f,
+			            FLinearColor(1.f, 1.f, 1.f, 0.85f));
+		}
+		else
+		{
+			FString Short = DragRow ? DragRow->DisplayName.Left(4) : DragItem.ItemId.ToString().Left(4);
+			float TW, TH;
+			GetTextSize(Short, TW, TH, F, 0.8f);
+			DrawText(Short, FLinearColor(1.f, 0.85f, 0.1f, 0.85f),
+			         DX + (DevSlotSize - TW) * 0.5f, DY + (DevSlotSize - TH) * 0.5f, F, 0.8f);
+		}
+		if (DragItem.Quantity > 1)
+			DrawText(FString::FromInt(DragItem.Quantity), FLinearColor(0.f, 1.f, 0.f, 0.85f), DX + 2.f, DY + 2.f, F, 0.75f);
+	}
 }
 
-void ARogueyHUD::DrawDevTab_Spawn(float PX, float PY, float PW, UFont* F)
+// ── Spawn Tool (separate overlay, opened by `) ────────────────────────────────
+
+bool ARogueyHUD::IsMouseOverSpawnTool(float MX, float MY) const
 {
-	URogueyNpcRegistry* Registry = URogueyNpcRegistry::Get(this);
-	if (!Registry) return;
+	return bSpawnToolOpen
+		&& MX >= SpawnToolX && MX <= SpawnToolX + SpawnToolW
+		&& MY >= SpawnToolY && MY <= SpawnToolY + SpawnToolH;
+}
 
-	TArray<FName> NpcTypes = Registry->GetAllNpcTypeIds();
+FSpawnToolHit ARogueyHUD::HitTestSpawnTool(float MX, float MY) const
+{
+	FSpawnToolHit Result;
+	if (!IsMouseOverSpawnTool(MX, MY)) return Result;
 
+	for (int32 i = 0; i < 2; i++)
+	{
+		const FHitRect& R = SpawnToolTabRects[i];
+		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
+		{
+			Result.Type  = FSpawnToolHit::EType::Tab;
+			Result.Index = i;
+			return Result;
+		}
+	}
+
+	for (int32 i = 0; i < SpawnToolEntryRects.Num(); i++)
+	{
+		const FHitRect& R = SpawnToolEntryRects[i];
+		if (MX >= R.X && MX <= R.X + R.W && MY >= R.Y && MY <= R.Y + R.H)
+		{
+			Result.Type  = FSpawnToolHit::EType::Entry;
+			Result.Index = i;
+			return Result;
+		}
+	}
+
+	return Result;
+}
+
+void ARogueyHUD::DrawSpawnTool()
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC) return;
+
+	URogueyNpcRegistry*  NpcReg  = URogueyNpcRegistry::Get(this);
+	URogueyItemRegistry* ItemReg = URogueyItemRegistry::Get(this);
+
+	SpawnToolNpcList.Reset();
+	SpawnToolItemList.Reset();
+	SpawnToolEntryRects.Reset();
+
+	UFont* F = Font();
+
+	const FLinearColor BgColor(0.04f, 0.04f, 0.04f, 0.94f);
+	const FLinearColor BorderColor(0.55f, 0.48f, 0.22f, 1.f);
+	const FLinearColor HeaderColor(0.85f, 0.75f, 0.3f, 1.f);
+	const FLinearColor TabActiveBg(0.14f, 0.12f, 0.05f, 1.f);
+	const FLinearColor TabActiveTxt(0.9f, 0.75f, 0.2f, 1.f);
+	const FLinearColor TabInactiveTxt(0.5f, 0.5f, 0.5f, 1.f);
 	const FLinearColor RowBg(0.08f, 0.08f, 0.08f, 1.f);
 	const FLinearColor RowHover(0.18f, 0.32f, 0.18f, 1.f);
-	const FLinearColor LabelColor = FLinearColor::White;
-	const float RowW = PW - DevPadX * 2.f;
 
-	float MY = 0.f;
-	float MX = 0.f;
-	if (APlayerController* PC = GetOwningPlayerController())
-		PC->GetMousePosition(MX, MY);
+	TArray<FName> NpcTypes = NpcReg  ? NpcReg->GetAllNpcTypeIds()  : TArray<FName>();
+	TArray<FName> ItemIds  = ItemReg ? ItemReg->GetAllItemIds()     : TArray<FName>();
+	const TArray<FName>& ActiveList = (SpawnToolActiveTab == 0) ? NpcTypes : ItemIds;
 
-	float Y = PY + DevPadY;
-	for (const FName& TypeId : NpcTypes)
+	const float EntryH   = DevRowH + DevSlotGap;
+	const float ContentH = ActiveList.Num() * EntryH + DevPadY * 2.f;
+	const float TotalH   = SpawnToolHdrH + SpawnToolTabH + 1.f + ContentH;
+
+	const float PX = 10.f;
+	const float PY = FMath::Max(10.f, (Canvas->SizeY - TotalH) * 0.5f);
+
+	SpawnToolX = PX;
+	SpawnToolY = PY;
+	SpawnToolH = TotalH;
+
+	// Background + border
+	DrawRect(BgColor,     PX,                PY,          SpawnToolW, TotalH);
+	DrawRect(BorderColor, PX,                PY,          SpawnToolW, 1.f);
+	DrawRect(BorderColor, PX,                PY + TotalH, SpawnToolW, 1.f);
+	DrawRect(BorderColor, PX,                PY,          1.f,        TotalH);
+	DrawRect(BorderColor, PX + SpawnToolW,   PY,          1.f,        TotalH + 1.f);
+
+	// Header
+	const FString Title = TEXT("Spawn Tool  [- to close]");
+	float TW, TH;
+	GetTextSize(Title, TW, TH, F, 0.85f);
+	DrawText(Title, HeaderColor, PX + (SpawnToolW - TW) * 0.5f, PY + (SpawnToolHdrH - TH) * 0.5f, F, 0.85f);
+	DrawRect(BorderColor, PX, PY + SpawnToolHdrH, SpawnToolW, 1.f);
+
+	// Tab bar
+	const float TabY = PY + SpawnToolHdrH + 1.f;
+	const float TabW = SpawnToolW / 2.f;
+	static const TCHAR* TabLabels[] = { TEXT("NPCs"), TEXT("Items") };
+	for (int32 i = 0; i < 2; i++)
 	{
-		const float RX = PX + DevPadX;
-		const bool bHovered = (MX >= RX && MX <= RX + RowW && MY >= Y && MY <= Y + DevRowH);
+		const float TX     = PX + i * TabW;
+		const bool bActive = (SpawnToolActiveTab == i);
+		if (bActive)
+			DrawRect(TabActiveBg, TX + 1.f, TabY + 1.f, TabW - 1.f, SpawnToolTabH - 1.f);
+		float LW, LH;
+		GetTextSize(TabLabels[i], LW, LH, F, 0.8f);
+		DrawText(TabLabels[i],
+		         bActive ? TabActiveTxt : TabInactiveTxt,
+		         TX + (TabW - LW) * 0.5f, TabY + (SpawnToolTabH - LH) * 0.5f, F, 0.8f);
+		SpawnToolTabRects[i] = { TX, TabY, TabW, SpawnToolTabH };
+	}
+	DrawRect(BorderColor, PX, TabY + SpawnToolTabH, SpawnToolW, 1.f);
 
-		DrawRect(bHovered ? RowHover : RowBg, RX, Y, RowW, DevRowH);
+	// Entry list
+	float MX = 0.f, MY = 0.f;
+	PC->GetMousePosition(MX, MY);
 
-		URogueyNpcRegistry* Reg = Registry; // already have it
-		FString Label = TypeId.ToString();
-		if (const FRogueyNpcRow* Row = Reg->FindNpc(TypeId))
-			Label = Row->NpcName;
+	const float ListY = TabY + SpawnToolTabH + 1.f;
+	const float RowW  = SpawnToolW - DevPadX * 2.f;
+	float CurY = ListY + DevPadY;
 
-		DrawText(Label, LabelColor, RX + 4.f, Y + 2.f, F, 0.9f);
+	for (const FName& Id : ActiveList)
+	{
+		const float RX       = PX + DevPadX;
+		const bool  bHovered = (MX >= RX && MX <= RX + RowW && MY >= CurY && MY <= CurY + DevRowH);
 
-		DevSlotRects.Add({ RX, Y, RowW, DevRowH });
-		DevSpawnNpcTypes.Add(TypeId);
+		DrawRect(bHovered ? RowHover : RowBg, RX, CurY, RowW, DevRowH);
 
-		Y += DevRowH + DevSlotGap;
+		FString Label;
+		if (SpawnToolActiveTab == 0)
+		{
+			const FRogueyNpcRow* Row = NpcReg ? NpcReg->FindNpc(Id) : nullptr;
+			Label = Row ? Row->NpcName : Id.ToString();
+			SpawnToolNpcList.Add(Id);
+		}
+		else
+		{
+			const FRogueyItemRow* Row = ItemReg ? ItemReg->FindItem(Id) : nullptr;
+			Label = Row ? Row->DisplayName : Id.ToString();
+			SpawnToolItemList.Add(Id);
+		}
+
+		DrawText(Label, FLinearColor::White, RX + 4.f, CurY + 2.f, F, 0.9f);
+		SpawnToolEntryRects.Add({ RX, CurY, RowW, DevRowH });
+		CurY += EntryH;
 	}
 }

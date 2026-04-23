@@ -30,11 +30,20 @@ struct FContextMenuEntry
 
 struct FDevPanelHit
 {
-	enum class EType : uint8 { None, Tab, InvSlot, EquipSlot, NpcSpawn };
+	enum class EType : uint8 { None, Tab, InvSlot, EquipSlot };
 
 	EType          Type      = EType::None;
-	int32          Index     = -1;                           // tab index, inventory slot, or NpcSpawn entry index
-	EEquipmentSlot EquipSlot = EEquipmentSlot::Head;         // valid when Type == EquipSlot
+	int32          Index     = -1;
+	EEquipmentSlot EquipSlot = EEquipmentSlot::Head;
+};
+
+// ── Spawn tool hit result ─────────────────────────────────────────────────────
+
+struct FSpawnToolHit
+{
+	enum class EType : uint8 { None, Tab, Entry };
+	EType Type  = EType::None;
+	int32 Index = -1; // tab index or entry index into the active list
 };
 
 // ── Hit splats ────────────────────────────────────────────────────────────────
@@ -80,15 +89,32 @@ public:
 	bool  GetContextEntryCopy(int32 Index, FContextMenuEntry& OutEntry) const;
 
 	// ── Dev panel API ─────────────────────────────────────────────────────────
-	bool bDevPanelOpen = false;
-	int32 ActiveTab    = 0;   // 0=Stats 1=Equipment 2=Inventory 3=Spawn
+	bool  bDevPanelOpen = false;
+	int32 ActiveTab     = 0;   // 0=Stats 1=Equipment 2=Inventory
 
-	// Written each frame during DrawHUD — read by the player controller on click
-	TArray<FName> DevSpawnNpcTypes;
+	// Inventory drag — set by PlayerController each frame while dragging
+	bool  bInvDragging = false;
+	int32 InvDragSlot  = -1;  // source slot index
+	float InvDragX     = 0.f; // current mouse X
+	float InvDragY     = 0.f; // current mouse Y
+
+	// Use selection — draws white outline on this slot; -1 = none
+	int32 InvUseSelectedSlot = -1;
 
 	void         SetActiveTab(int32 Index);
 	FDevPanelHit HitTestDevPanel(float MX, float MY) const;
 	bool         IsMouseOverDevPanel(float MX, float MY) const;
+
+	// ── Spawn tool API ────────────────────────────────────────────────────────
+	bool  bSpawnToolOpen     = false;
+	int32 SpawnToolActiveTab = 0; // 0=NPCs 1=Items
+
+	FSpawnToolHit HitTestSpawnTool(float MX, float MY) const;
+	bool          IsMouseOverSpawnTool(float MX, float MY) const;
+
+	// Written each DrawHUD frame — read by PlayerController on click/hover
+	TArray<FName> SpawnToolNpcList;
+	TArray<FName> SpawnToolItemList;
 
 private:
 	void DrawContextMenu();
@@ -99,12 +125,12 @@ private:
 	void DrawHitSplats(float DeltaSeconds);
 	void DrawSpeechBubbles(float DeltaSeconds);
 	void DrawDevPanel();
+	void DrawSpawnTool();
 
-	// Dev panel sub-drawers
+	// Dev panel sub-drawers (3 tabs: Stats / Equipment / Inventory)
 	void DrawDevTab_Stats(float PX, float PY, float PW, UFont* F);
 	void DrawDevTab_Equipment(float PX, float PY, float PW, UFont* F);
 	void DrawDevTab_Inventory(float PX, float PY, float PW, UFont* F);
-	void DrawDevTab_Spawn(float PX, float PY, float PW, UFont* F);
 
 	UFont* Font() const { return OSRSFont ? OSRSFont.Get() : nullptr; }
 
@@ -121,10 +147,18 @@ private:
 
 	// Hit-test cache — set during DrawHUD, valid outside it
 	struct FHitRect { float X, Y, W, H; };
+
+	// Dev panel cache
 	float DevPanelX = 0.f, DevPanelY = 0.f, DevPanelH = 0.f;
-	FHitRect               DevTabRects[4];
-	TArray<FHitRect>       DevSlotRects;      // inv/equip/spawn rows for active tab
-	TArray<EEquipmentSlot> DevEquipSlotOrder; // parallel to DevSlotRects when tab==1
+	float InvAreaX  = 0.f, InvAreaY  = 0.f, InvAreaW  = 0.f, InvAreaH = 0.f;
+	FHitRect               DevTabRects[3];
+	TArray<FHitRect>       DevSlotRects;
+	TArray<EEquipmentSlot> DevEquipSlotOrder;
+
+	// Spawn tool cache
+	float SpawnToolX = 0.f, SpawnToolY = 0.f, SpawnToolH = 0.f;
+	FHitRect         SpawnToolTabRects[2];
+	TArray<FHitRect> SpawnToolEntryRects;
 
 	static constexpr float BubbleDuration   = 4.0f;
 	static constexpr float SplatDuration    = 1.5f;
@@ -146,4 +180,8 @@ private:
 	static constexpr float DevPadX     = 8.f;
 	static constexpr float DevPadY     = 8.f;
 	static constexpr float DevRowH     = 20.f;
+
+	static constexpr float SpawnToolW    = 280.f;
+	static constexpr float SpawnToolTabH = 26.f;
+	static constexpr float SpawnToolHdrH = 28.f;
 };

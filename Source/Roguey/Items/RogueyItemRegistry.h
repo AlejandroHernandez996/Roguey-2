@@ -16,6 +16,7 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	const FRogueyItemRow* FindItem(FName ItemId) const;
+	TArray<FName>         GetAllItemIds() const;
 
 	static URogueyItemRegistry* Get(const UObject* WorldContext);
 

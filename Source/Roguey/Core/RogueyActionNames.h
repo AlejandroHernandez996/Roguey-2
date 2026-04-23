@@ -20,4 +20,5 @@ namespace RogueyActions
 
 	// Dev
 	static const FName Spawn = "Spawn";
+	static const FName Give  = "Give";
 }

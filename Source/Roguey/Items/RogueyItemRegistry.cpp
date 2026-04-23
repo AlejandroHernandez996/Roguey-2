@@ -29,6 +29,14 @@ const FRogueyItemRow* URogueyItemRegistry::FindItem(FName ItemId) const
 	return Found ? *Found : nullptr;
 }
 
+TArray<FName> URogueyItemRegistry::GetAllItemIds() const
+{
+	TArray<FName> Result;
+	Cache.GetKeys(Result);
+	Result.Sort([](const FName& A, const FName& B){ return A.ToString() < B.ToString(); });
+	return Result;
+}
+
 URogueyItemRegistry* URogueyItemRegistry::Get(const UObject* WorldContext)
 {
 	if (!WorldContext) return nullptr;

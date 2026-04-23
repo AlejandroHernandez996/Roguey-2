@@ -82,17 +82,32 @@ private:
 	void HandleRightClick();
 	void HandleDevPanelLeftClick(const struct FDevPanelHit& Hit);
 	void HandleDevPanelRightClick(const struct FDevPanelHit& Hit, float MX, float MY);
+	void HandleSpawnToolLeftClick(const struct FSpawnToolHit& Hit);
 	void ExecuteContextEntry(const struct FContextMenuEntry& Entry);
 	void OnClickCompleted(const FInputActionValue& Value);
 
 	UFUNCTION(Server, Reliable)
 	void Server_DevSpawnNpc(FName NpcTypeId);
 
+	UFUNCTION(Server, Reliable)
+	void Server_DevGiveItem(FName ItemId);
+
 	bool bRotatingCamera           = false;
 	bool bPrimaryModifierHeld      = false;
 	bool bSecondaryModifierHeld    = false;
-	bool bMenuWasOpenOnPress       = false; // blocks held-click movement after dismissing menu
-	bool bDevPanelClickHandled     = false; // prevents dev panel click from firing every held frame
+	bool bMenuWasOpenOnPress       = false;
+	bool bDevPanelClickHandled     = false;
+	bool bSpawnToolClickHandled    = false;
+
+	// Inventory drag state
+	int32 InvDragSourceSlot = -1;   // -1 = no drag in progress
+	float InvDragStartX     = 0.f;
+	float InvDragStartY     = 0.f;
+	float InvDragHoldTime   = 0.f;  // seconds held since mouse-down
+	bool  bInvDragActive    = false; // drag threshold exceeded
+
+	static constexpr float InvDragDelay    = 0.3f; // seconds before drag can start
+	static constexpr float InvDragMinPixels = 6.f;
 
 	UPROPERTY()
 	TObjectPtr<ARogueyTerrain> CachedTerrain;
