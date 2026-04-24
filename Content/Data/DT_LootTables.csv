@@ -14,3 +14,11 @@ copper_rock_ore,copper_ore,1,100
 tin_rock_ore,tin_ore,1,100
 iron_rock_ore,iron_ore,1,100
 coal_rock_coal,coal,1,100
+dungeon_lord_coins,coins,200,100
+dungeon_lord_lobster,lobster,3,60
+dungeon_lord_karambwan,karambwan,2,45
+dungeon_lord_steel_scimitar,steel_scimitar,1,30
+dungeon_lord_steel_sword,steel_sword,1,25
+dungeon_lord_melee_potion,melee_potion_4,1,40
+dungeon_lord_defence_potion,defence_potion_4,1,35
+dungeon_lord_amulet,amulet_of_strength,1,15

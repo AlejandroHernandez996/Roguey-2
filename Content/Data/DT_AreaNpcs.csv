@@ -4,4 +4,5 @@ forest_1_goblin,forest_1,goblin,2,4
 forest_1_rat,forest_1,rat,1,3
 dungeon_1_goblin,dungeon_1,goblin,2,3
 dungeon_1_skeleton,dungeon_1,skeleton,1,2
-boss_1_skeleton,boss_1,skeleton,1,1
+boss_1_dungeon_lord,boss_1,dungeon_lord,1,1
+boss_1_skeleton,boss_1,skeleton,1,2

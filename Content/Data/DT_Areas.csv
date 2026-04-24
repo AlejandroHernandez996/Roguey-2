@@ -2,4 +2,4 @@
 hub,Hub,Hub,CellularAutomata,40,40,6,14,4,0.55,4,ForestGround,forest_1,false,true
 forest_1,Forest,Combat,CellularAutomata,56,56,6,14,4,0.52,5,ForestGround,dungeon_1,true,false
 dungeon_1,Dungeon,Combat,BSP,56,56,6,16,6,0.45,4,DungeonStone,boss_1,true,false
-boss_1,Boss Chamber,Boss,BSP,40,40,10,20,3,0.45,4,DungeonStone,,true,false
+boss_1,Boss Chamber,Boss,BSP,40,40,10,20,3,0.45,4,DungeonStone,hub,true,false
