@@ -20,11 +20,13 @@ ARogueyTerrain::ARogueyTerrain()
 void ARogueyTerrain::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ARogueyTerrain, RepTilePalette);
+	DOREPLIFETIME(ARogueyTerrain, RepTileTypes);
 	DOREPLIFETIME(ARogueyTerrain, RepGridW);
 	DOREPLIFETIME(ARogueyTerrain, RepGridH);
 }
 
-void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
+void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager, uint8 TilePalette)
 {
 	if (!GridManager) return;
 
@@ -46,6 +48,16 @@ void ARogueyTerrain::BuildFromGrid(URogueyGridManager* GridManager)
 
 	int32 W = MaxX - MinX + 1;
 	int32 H = MaxY - MinY + 1;
+
+	// Set palette before RepGridW so all three arrive before OnRep_Build fires.
+	RepTilePalette = TilePalette;
+
+	// Populate tile type array (row-major Y*W+X) before setting RepGridW to ensure
+	// clients receive it in the same bunch before OnRep_Build fires.
+	RepTileTypes.SetNum(W * H);
+	for (int32 ty = 0; ty < H; ty++)
+		for (int32 tx = 0; tx < W; tx++)
+			RepTileTypes[ty * W + tx] = Grid.IsWalkable(FIntVector2(MinX + tx, MinY + ty)) ? 1 : 0;
 
 	RepGridH = H;
 	RepGridW = W; // triggers OnRep on clients
@@ -96,8 +108,26 @@ void ARogueyTerrain::BuildMesh(int32 GridW, int32 GridH)
 			float Z11 = HeightGrid[(ty + 1) * VW + tx + 1];
 
 			float AvgZ = (Z00 + Z10 + Z01 + Z11) * 0.25f;
-			uint8 V8   = (MaxHeight > 0.f) ? (uint8)(FMath::Clamp(AvgZ / MaxHeight, 0.f, 1.f) * 255) : 128;
-			FColor TileColor(V8, V8, V8, 255);
+
+			FColor TileColor;
+			bool bWalkable = RepTileTypes.Num() != GridW * GridH || RepTileTypes[ty * GridW + tx] != 0;
+			if (bWalkable)
+			{
+				uint8 V8 = (MaxHeight > 0.f) ? (uint8)(FMath::Clamp(AvgZ / MaxHeight, 0.f, 1.f) * 255) : 200;
+				// Forest palette: warm earthy brown-green tint on floor
+				if (RepTilePalette == 1)
+					TileColor = FColor(V8 * 0.75f, V8, V8 * 0.6f, 255);
+				else
+					TileColor = FColor(V8, V8, V8, 255);
+			}
+			else
+			{
+				// Non-walkable tile color depends on area palette
+				if (RepTilePalette == 1)
+					TileColor = FColor(15, 40, 10, 255);  // dense dark-green undergrowth
+				else
+					TileColor = FColor(35, 30, 25, 255);  // dungeon stone
+			}
 
 			float X0 = (GridMinX + tx)     * TileSize;
 			float X1 = (GridMinX + tx + 1) * TileSize;

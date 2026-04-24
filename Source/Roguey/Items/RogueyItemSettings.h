@@ -33,4 +33,20 @@ public:
 	// Row type must be FRogueyDialogueNode. Row name = NodeId.
 	UPROPERTY(Config, EditAnywhere, Category = "Tables")
 	TSoftObjectPtr<UDataTable> DialogueTable;
+
+	// Row type must be FRogueyAreaRow. Row name = AreaId.
+	UPROPERTY(Config, EditAnywhere, Category = "Tables")
+	TSoftObjectPtr<UDataTable> AreaTable;
+
+	// Row type must be FRogueyAreaNpcRow. Row names: "{areaId}_{npcTypeId}".
+	UPROPERTY(Config, EditAnywhere, Category = "Tables")
+	TSoftObjectPtr<UDataTable> AreaNpcTable;
+
+	// Row type must be FRogueyAreaObjectRow. Row names: "{areaId}_{objectTypeId}".
+	UPROPERTY(Config, EditAnywhere, Category = "Tables")
+	TSoftObjectPtr<UDataTable> AreaObjectTable;
+
+	// Row type must be FRogueyObjectRow. Row name = ObjectTypeId.
+	UPROPERTY(Config, EditAnywhere, Category = "Tables")
+	TSoftObjectPtr<UDataTable> ObjectTable;
 };

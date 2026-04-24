@@ -15,7 +15,7 @@ class ROGUEY_API ARogueyTerrain : public AActor
 public:
 	ARogueyTerrain();
 
-	void BuildFromGrid(URogueyGridManager* GridManager);
+	void BuildFromGrid(URogueyGridManager* GridManager, uint8 TilePalette = 0);
 
 	// Returns world-space positions of the 4 corners of a tile
 	bool GetTileCorners(FIntVector2 Tile, FVector& OutBL, FVector& OutBR, FVector& OutTL, FVector& OutTR) const;
@@ -42,7 +42,15 @@ private:
 	UFUNCTION()
 	void OnRep_Build();
 
-	// Only dimensions need to replicate — noise/material come from BP class defaults (same on all machines)
+	// Tile walkability flags (1 = walkable, 0 = blocked), row-major Y*W+X.
+	// RepTilePalette and RepTileTypes declared before RepGridW so they arrive
+	// in the same replication bunch before OnRep_Build fires.
+	UPROPERTY(Replicated)
+	uint8 RepTilePalette = 0;
+
+	UPROPERTY(Replicated)
+	TArray<uint8> RepTileTypes;
+
 	UPROPERTY(ReplicatedUsing=OnRep_Build)
 	int32 RepGridW = 0;
 

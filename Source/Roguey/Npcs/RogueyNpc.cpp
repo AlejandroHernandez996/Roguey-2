@@ -4,10 +4,17 @@
 #include "Roguey/Core/RogueyActionNames.h"
 #include "Roguey/Combat/RogueyEquipmentBonuses.h"
 #include "Roguey/Skills/RogueyStatType.h"
+#include "Net/UnrealNetwork.h"
 
 ARogueyNpc::ARogueyNpc()
 {
 	TeamId = 1;
+}
+
+void ARogueyNpc::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ARogueyNpc, NpcTypeId);
 }
 
 void ARogueyNpc::BeginPlay()

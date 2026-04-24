@@ -26,6 +26,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
 	FString ExamineDesc = TEXT("A shimmering portal.");
 
+	// If true, portal is disabled until all hostile NPCs in the level are dead.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
+	bool bRequiresClearRoom = false;
+
 	// Called by ActionManager when the player chooses Enter. Server-side only.
 	void TryEnter(ARogueyPawn* Pawn);
 
@@ -33,4 +37,7 @@ public:
 	virtual TArray<FRogueyActionDef> GetActions()    const override;
 	virtual FText   GetTargetName()  const override;
 	virtual FString GetExamineText() const override;
+
+private:
+	bool IsRoomStillHostile() const;
 };

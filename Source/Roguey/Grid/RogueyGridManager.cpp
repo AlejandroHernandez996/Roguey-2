@@ -1,5 +1,6 @@
 #include "RogueyGridManager.h"
 #include "Roguey/Core/RogueyPawn.h"
+#include "Roguey/World/RogueyObject.h"
 
 void URogueyGridManager::Init(int32 Width, int32 Height)
 {
@@ -16,6 +17,8 @@ static FIntPoint GetPawnExtent(const AActor* Actor)
 {
 	if (const ARogueyPawn* Pawn = Cast<ARogueyPawn>(Actor))
 		return FIntPoint(FMath::Max(1, Pawn->TileExtent.X), FMath::Max(1, Pawn->TileExtent.Y));
+	if (const ARogueyObject* Obj = Cast<ARogueyObject>(Actor))
+		return FIntPoint(FMath::Max(1, Obj->TileExtent.X), FMath::Max(1, Obj->TileExtent.Y));
 	return FIntPoint(1, 1);
 }
 
@@ -84,10 +87,11 @@ bool URogueyGridManager::IsWalkable(FIntVector2 Coord) const
 
 bool URogueyGridManager::IsOccupiedByBlocker(FIntVector2 Coord) const
 {
-	if (const TObjectPtr<AActor>* Found = TileOccupancy.Find(Coord))
-		if (const ARogueyPawn* Pawn = Cast<ARogueyPawn>(Found->Get()))
-			return Pawn->bBlocksMovement;
-	return false;
+	const TObjectPtr<AActor>* Found = TileOccupancy.Find(Coord);
+	if (!Found || !Found->Get()) return false;
+	// Pawns respect their bBlocksMovement flag; non-Pawn actors (objects) always block.
+	const ARogueyPawn* Pawn = Cast<ARogueyPawn>(Found->Get());
+	return !Pawn || Pawn->bBlocksMovement;
 }
 
 bool URogueyGridManager::CanMove(FIntVector2 From, FIntVector2 To) const

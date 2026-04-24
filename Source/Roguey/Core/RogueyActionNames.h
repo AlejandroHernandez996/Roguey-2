@@ -23,6 +23,7 @@ namespace RogueyActions
 
 	// World objects
 	static const FName Enter  = "Enter";
+	static const FName Gather = "Gather";
 
 	// Dev
 	static const FName Spawn = "Spawn";

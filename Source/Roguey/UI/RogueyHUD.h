@@ -139,6 +139,7 @@ private:
 	void DrawSpeechBubbles(float DeltaSeconds);
 	void DrawDevPanel();
 	void DrawSpawnTool();
+	void DrawRoomName();
 
 	// Dev panel sub-drawers (3 tabs: Stats / Equipment / Inventory)
 	void DrawDevTab_Stats(float PX, float PY, float PW, UFont* F);

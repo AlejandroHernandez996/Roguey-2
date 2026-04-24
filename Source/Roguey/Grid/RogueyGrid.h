@@ -14,14 +14,10 @@ struct ROGUEY_API FRogueyGrid
 
 	void Init(int32 Width, int32 Height)
 	{
-		Tiles.Reserve(Width * Height);
+		Tiles.Empty(Width * Height);
 		for (int32 X = 0; X < Width; X++)
-		{
 			for (int32 Y = 0; Y < Height; Y++)
-			{
 				Tiles.Add(FIntVector2(X, Y), FRogueyTile());
-			}
-		}
 	}
 
 	bool IsInBounds(FIntVector2 Coord) const

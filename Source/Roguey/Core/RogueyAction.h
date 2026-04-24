@@ -10,8 +10,10 @@ enum class EActionType : uint8
 	Move,
 	Attack,
 	AttackMove,
-	TakeLoot,  // walk to ground item tile then pick up
-	TalkMove,  // walk to NPC until adjacent, then open dialogue on the client
+	TakeLoot,    // walk to ground item tile then pick up
+	TalkMove,    // walk to NPC until adjacent, then open dialogue on the client
+	GatherMove,  // walk adjacent to world object, then switch to Gather
+	Gather,      // counting down GatherTicks beside the object
 };
 
 // Describes a single action exposed by an interactable object.
@@ -32,9 +34,10 @@ struct FRogueyActionDef
 struct FRogueyPendingAction
 {
 	EActionType Type = EActionType::None;
-	TWeakObjectPtr<AActor> TargetActor;  // ARogueyPawn for combat, ARogueyLootDrop for TakeLoot
+	TWeakObjectPtr<AActor> TargetActor;
 	FIntPoint TargetTile = FIntPoint(-1, -1);
 	FIntVector2 LastKnownTargetTile = FIntVector2(-1, -1);
+	int32 TicksRemaining = 0;  // used by Gather countdown
 
 	bool IsActive() const { return Type != EActionType::None; }
 	void Clear() { *this = FRogueyPendingAction(); }

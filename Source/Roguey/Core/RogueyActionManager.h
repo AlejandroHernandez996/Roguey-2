@@ -8,6 +8,7 @@
 
 class ARogueyPawn;
 class ARogueyLootDrop;
+class ARogueyObject;
 class URogueyGridManager;
 class URogueyMovementManager;
 class URogueyCombatManager;
@@ -61,6 +62,10 @@ private:
 	void TickTakeLoot(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
 	void SetTalkAction(ARogueyPawn* Pawn, ARogueyPawn* Target);
 	void TickTalkMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
+
+	void SetGatherAction(ARogueyPawn* Pawn, ARogueyObject* Object);
+	void TickGatherMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
+	void TickGather(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex);
 
 	void ProcessConsumeQueue(ARogueyPawn* Pawn, TArray<int32>& Slots);
 	void TickStatBuffs();

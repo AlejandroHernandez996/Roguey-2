@@ -1,6 +1,8 @@
 #include "RogueyActionManager.h"
 #include "RogueyActionNames.h"
 #include "Roguey/World/RogueyPortal.h"
+#include "Roguey/World/RogueyObject.h"
+#include "Roguey/World/RogueyObjectRegistry.h"
 #include "Roguey/Npcs/RogueyNpc.h"
 #include "Roguey/Npcs/RogueyNpcRegistry.h"
 #include "Roguey/RogueyPlayerController.h"
@@ -52,11 +54,13 @@ void URogueyActionManager::RogueyTick(int32 TickIndex)
 
 		switch (Action.Type)
 		{
-			case EActionType::Move:       TickMove(Pawn, Action, TickIndex);       break;
-			case EActionType::AttackMove: TickAttackMove(Pawn, Action, TickIndex); break;
-			case EActionType::Attack:     TickAttack(Pawn, Action, TickIndex);     break;
-			case EActionType::TakeLoot:   TickTakeLoot(Pawn, Action, TickIndex);   break;
-			case EActionType::TalkMove:   TickTalkMove(Pawn, Action, TickIndex);   break;
+			case EActionType::Move:        TickMove(Pawn, Action, TickIndex);        break;
+			case EActionType::AttackMove:  TickAttackMove(Pawn, Action, TickIndex);  break;
+			case EActionType::Attack:      TickAttack(Pawn, Action, TickIndex);      break;
+			case EActionType::TakeLoot:    TickTakeLoot(Pawn, Action, TickIndex);    break;
+			case EActionType::TalkMove:    TickTalkMove(Pawn, Action, TickIndex);    break;
+			case EActionType::GatherMove:  TickGatherMove(Pawn, Action, TickIndex);  break;
+			case EActionType::Gather:      TickGather(Pawn, Action, TickIndex);      break;
 			default: break;
 		}
 
@@ -130,6 +134,11 @@ void URogueyActionManager::SetActorAction(ARogueyPawn* Pawn, AActor* Target, FNa
 	{
 		if (ARogueyPortal* Portal = Cast<ARogueyPortal>(Target))
 			Portal->TryEnter(Pawn);
+	}
+	else if (ActionId == RogueyActions::Gather)
+	{
+		if (ARogueyObject* Object = Cast<ARogueyObject>(Target))
+			SetGatherAction(Pawn, Object);
 	}
 }
 
@@ -556,4 +565,137 @@ void URogueyActionManager::TickStatBuffs()
 			}
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Gather
+// ---------------------------------------------------------------------------
+
+void URogueyActionManager::SetGatherAction(ARogueyPawn* Pawn, ARogueyObject* Object)
+{
+	if (!IsValid(Pawn) || !IsValid(Object) || !GridManager) return;
+
+	ClearAction(Pawn);
+
+	FRogueyPendingAction Action;
+	Action.Type        = EActionType::GatherMove;
+	Action.TargetActor = Object;
+	PendingActions.Add(Pawn, Action);
+
+	FIntVector2 ObjectTile = GridManager->GetActorTile(Object);
+	if (ObjectTile.X < 0) return;
+
+	FIntPoint ObjExtent(FMath::Max(1, Object->TileExtent.X), FMath::Max(1, Object->TileExtent.Y));
+	FIntVector2 BestGoal = FindBestAttackTile(Pawn->GetTileCoord(), Pawn->TileExtent, ObjectTile, ObjExtent, 1, false);
+	FRogueyPath Path = RogueyPathfinder::FindPath(GridManager, Pawn->GetTileCoord(), BestGoal, Pawn->TileExtent);
+	if (Path.IsValid())
+		MovementManager->RequestMove(Pawn, MoveTemp(Path), false);
+}
+
+void URogueyActionManager::TickGatherMove(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex)
+{
+	ARogueyObject* Object = Cast<ARogueyObject>(Action.TargetActor.Get());
+	if (!IsValid(Object)) { Action.Clear(); return; }
+
+	FIntVector2 ObjectTile = GridManager->GetActorTile(Object);
+	if (ObjectTile.X < 0) { Action.Clear(); return; }
+
+	FIntPoint ObjExtent(FMath::Max(1, Object->TileExtent.X), FMath::Max(1, Object->TileExtent.Y));
+
+	if (IsInAttackRange(Pawn->GetTileCoord(), Pawn->TileExtent, ObjectTile, ObjExtent, 1, false))
+	{
+		MovementManager->CancelMove(Pawn);
+
+		URogueyObjectRegistry* Reg = URogueyObjectRegistry::Get(this);
+		const FRogueyObjectRow* Row = Reg ? Reg->FindObject(Object->ObjectTypeId) : nullptr;
+
+		Action.Type           = EActionType::Gather;
+		Action.TicksRemaining = Row ? Row->GatherTicks : 4;
+		return;
+	}
+
+	if (!MovementManager->HasPendingMove(Pawn))
+	{
+		FIntVector2 BestGoal = FindBestAttackTile(Pawn->GetTileCoord(), Pawn->TileExtent, ObjectTile, ObjExtent, 1, false);
+		FRogueyPath Path = RogueyPathfinder::FindPath(GridManager, Pawn->GetTileCoord(), BestGoal, Pawn->TileExtent);
+		if (Path.IsValid())
+			MovementManager->RequestMove(Pawn, MoveTemp(Path), false);
+		else
+			Action.Clear();
+	}
+}
+
+void URogueyActionManager::TickGather(ARogueyPawn* Pawn, FRogueyPendingAction& Action, int32 TickIndex)
+{
+	ARogueyObject* Object = Cast<ARogueyObject>(Action.TargetActor.Get());
+	if (!IsValid(Object)) { Action.Clear(); return; }
+
+	FIntVector2 ObjectTile = GridManager->GetActorTile(Object);
+	if (ObjectTile.X < 0) { Action.Clear(); return; }
+
+	FIntPoint ObjExtent(FMath::Max(1, Object->TileExtent.X), FMath::Max(1, Object->TileExtent.Y));
+
+	// Stepped away — walk back
+	if (!IsInAttackRange(Pawn->GetTileCoord(), Pawn->TileExtent, ObjectTile, ObjExtent, 1, false))
+	{
+		Action.Type           = EActionType::GatherMove;
+		Action.TicksRemaining = 0;
+		FIntVector2 BestGoal  = FindBestAttackTile(Pawn->GetTileCoord(), Pawn->TileExtent, ObjectTile, ObjExtent, 1, false);
+		FRogueyPath Path = RogueyPathfinder::FindPath(GridManager, Pawn->GetTileCoord(), BestGoal, Pawn->TileExtent);
+		if (Path.IsValid())
+			MovementManager->RequestMove(Pawn, MoveTemp(Path), false);
+		return;
+	}
+
+	Action.TicksRemaining--;
+	if (Action.TicksRemaining > 0) return;
+
+	URogueyObjectRegistry* Reg = URogueyObjectRegistry::Get(this);
+	const FRogueyObjectRow* Row = Reg ? Reg->FindObject(Object->ObjectTypeId) : nullptr;
+
+	if (Row)
+	{
+		// Award XP
+		FRogueyStat& Stat = Pawn->StatPage.Get(Row->Skill);
+		if (Stat.AddXP(Row->XpPerAction))
+		{
+			const TCHAR* SkillName = (Row->Skill == ERogueyStatType::Woodcutting) ? TEXT("Woodcutting") :
+			                         (Row->Skill == ERogueyStatType::Mining)       ? TEXT("Mining")      : TEXT("Skill");
+			Pawn->ShowSpeechBubble(FString::Printf(TEXT("%s level %d!"), SkillName, Stat.BaseLevel));
+		}
+
+		// Roll loot
+		if (!Row->LootTableId.IsNone())
+		{
+			TArray<FRogueyLootEntry> LootTable = Reg->GetLootEntries(Row->LootTableId);
+			int32 TotalWeight = 0;
+			for (const FRogueyLootEntry& E : LootTable) TotalWeight += E.Weight;
+
+			if (TotalWeight > 0)
+			{
+				int32 Roll = FMath::RandRange(1, TotalWeight);
+				int32 Accum = 0;
+				for (const FRogueyLootEntry& E : LootTable)
+				{
+					Accum += E.Weight;
+					if (Roll <= Accum)
+					{
+						FRogueyItem LootItem;
+						LootItem.ItemId   = E.ItemId;
+						LootItem.Quantity = E.Quantity;
+
+						ARogueyLootDrop* Drop = GetWorld()->SpawnActor<ARogueyLootDrop>(
+							ARogueyLootDrop::StaticClass(), Pawn->GetActorLocation(), FRotator::ZeroRotator);
+						if (Drop)
+							Drop->Init(LootItem, Pawn->GetTileCoord());
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	// Restart cycle — continuous gathering like OSRS
+	Action.Type           = EActionType::GatherMove;
+	Action.TicksRemaining = 0;
 }

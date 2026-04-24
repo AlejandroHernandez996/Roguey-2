@@ -24,3 +24,17 @@ defence_potion_4,Defence potion(4),Potion,,false,1,300,0,0,0,0,0,0,4,Defence,10,
 empty_vial,Empty vial,Usable,,true,28,1,0,0,0,0,0,0,0,Melee,0,0,,A glass vial.
 bones,Bones,Misc,,true,28,1,0,0,0,0,0,0,0,Melee,0,0,,Remains of a creature.
 coins,Coins,Misc,,true,28,1,0,0,0,0,0,0,0,Melee,0,0,,Currency of the realm.
+bronze_axe,Bronze axe,Usable,,false,1,10,0,0,0,0,0,0,0,Melee,0,0,,Good for chopping trees.
+iron_axe,Iron axe,Usable,,false,1,40,0,0,0,0,0,0,0,Melee,0,0,,Chops faster than bronze.
+steel_axe,Steel axe,Usable,,false,1,120,0,0,0,0,0,0,0,Melee,0,0,,A reliable woodcutting axe.
+rune_axe,Rune axe,Usable,,false,1,800,0,0,0,0,0,0,0,Melee,0,0,,The best axe you can get.
+bronze_pickaxe,Bronze pickaxe,Usable,,false,1,10,0,0,0,0,0,0,0,Melee,0,0,,Good for breaking rocks.
+iron_pickaxe,Iron pickaxe,Usable,,false,1,40,0,0,0,0,0,0,0,Melee,0,0,,Mines faster than bronze.
+steel_pickaxe,Steel pickaxe,Usable,,false,1,120,0,0,0,0,0,0,0,Melee,0,0,,A reliable mining pick.
+oak_logs,Oak logs,Usable,,true,28,8,0,0,0,0,0,0,0,Melee,0,0,,Logs from an oak tree.
+willow_logs,Willow logs,Usable,,true,28,15,0,0,0,0,0,0,0,Melee,0,0,,Logs from a willow tree.
+yew_logs,Yew logs,Usable,,true,28,80,0,0,0,0,0,0,0,Melee,0,0,,Logs from a yew tree.
+copper_ore,Copper ore,Usable,,true,28,5,0,0,0,0,0,0,0,Melee,0,0,,A chunk of copper ore.
+tin_ore,Tin ore,Usable,,true,28,5,0,0,0,0,0,0,0,Melee,0,0,,A chunk of tin ore.
+iron_ore,Iron ore,Usable,,true,28,15,0,0,0,0,0,0,0,Melee,0,0,,A chunk of iron ore.
+coal,Coal,Usable,,true,28,20,0,0,0,0,0,0,0,Melee,0,0,,A lump of coal.

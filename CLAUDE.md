@@ -62,10 +62,25 @@ Three styles: Melee, Ranged, Magic — one stat each (not Attack+Strength).
 - [Combat](Docs/Systems/Combat.md) — TryAttack, OSRS formulas, cooldowns, XP
 - [Grid](Docs/Systems/Grid.md) — tile registration, occupancy, footprints, passability queries
 - [HUD](Docs/Systems/HUD.md) — canvas draw loop, hit-testing pattern, dev panel, context menu
-- [Items](Docs/Systems/Items.md) — DataTable/registry, item types, inventory/equipment, consume slots, loot drops
+- [Items](Docs/Systems/Items.md) — DataTable/registry, item types, inventory/equipment, consume slots, loot drops, world objects/gathering
+- [Rooms](Docs/Systems/Rooms.md) — data-driven level gen, DT_Areas, URogueyLevelGenerator, ServerTravel, URogueyRunState
 
 **Rule: whenever you change a system, update the corresponding doc in the same commit.**
 If the change is significant enough to break a reader's mental model, the doc update is not optional.
+
+## Known Open Issues
+
+Things that are stubbed, incomplete, or deferred. Update this list as work lands.
+
+- **Editor setup required for objects to spawn:** `DT_Objects` and `DT_AreaObjects` must be imported as DataTable assets in the Content Browser and assigned in Project Settings → Roguey → Data Tables (`ObjectTable`, `AreaObjectTable`). Without this, `SpawnObjects` returns early and no trees/rocks appear.
+- **`bEdgePreferred`** on `FRogueyAreaObjectRow` is parsed but not wired into the generator's tile selection.
+- **`ARogueyRoomDirector`** is legacy dead code — not used by any current level.
+- **Combat triangle** (melee/ranged/magic advantages) not implemented.
+- **Boss room** not started.
+- **Game-over / restart flow** not started.
+- **Target panel** uses `GetAuthGameMode` — works on listen-server host only; clients need replicated `AttackTarget` for multiplayer UI.
+- **Gathering tool validation** — `RequiredToolItemId` is stored in `FRogueyObjectRow` but `TickGatherMove`/`TickGather` do not yet check the player's inventory for it.
+- **Misc item "Use" action** is a no-op placeholder.
 
 ## Agent Teams
 

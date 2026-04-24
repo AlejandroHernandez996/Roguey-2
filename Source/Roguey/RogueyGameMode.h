@@ -10,6 +10,7 @@
 #include "Combat/RogueyCombatManager.h"
 #include "Grid/RogueyGridManager.h"
 #include "Terrain/RogueyTerrain.h"
+#include "World/RogueyLevelGenerator.h"
 #include "RogueyCharacter.h"
 #include "RogueyPlayerController.h"
 #include "Npcs/RogueyNpc.h"
@@ -61,9 +62,23 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Terrain")
 	TSubclassOf<ARogueyTerrain> TerrainClass;
 
+	UPROPERTY()
+	TObjectPtr<URogueyLevelGenerator> LevelGenerator;
+
+	// Row key in DT_Areas that this level generates. Set on each area's BP_RogueyGameMode instance.
+	UPROPERTY(EditAnywhere, Category = "Generation")
+	FName AreaRowName;
+
+	// Maps area row keys to level paths for portal travel. e.g. "forest_1" -> "/Game/.../Lvl_Forest"
+	UPROPERTY(EditAnywhere, Category = "Generation")
+	TMap<FName, FString> AreaLevelPaths;
+
 	// Blueprint class used by the dev spawn menu (assign BP_RogueyNpc here).
 	UPROPERTY(EditAnywhere, Category = "NPCs")
 	TSubclassOf<ARogueyNpc> NpcClass;
+
+	// Call before ServerTravel: snapshots every active player pawn into URogueyRunState.
+	void SaveAllPlayersForTravel();
 
 protected:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;

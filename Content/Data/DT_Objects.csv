@@ -1,0 +1,10 @@
+---,ObjectName,ObjectClass,ExamineText,TileWidth,TileHeight,bBlocksMovement,RequiredToolItemId,Skill,RequiredLevel,GatherTicks,XpPerAction,LootTableId
+oak_tree,Oak tree,,A sturdy oak tree.,1,1,true,bronze_axe,Woodcutting,1,4,37,oak_tree
+willow_tree,Willow tree,,Its branches droop gently.,1,1,true,bronze_axe,Woodcutting,30,4,67,willow_tree
+yew_tree,Yew tree,,Ancient and gnarled.,1,1,true,rune_axe,Woodcutting,60,4,175,yew_tree
+dead_tree,Dead tree,,A dried-out dead tree. Good for nothing.,1,1,true,,Woodcutting,1,4,0,
+large_rock,Large rock,,An immovable grey rock.,2,2,true,,Mining,1,0,0,
+copper_rock,Copper rock,,A vein of copper ore.,1,1,true,bronze_pickaxe,Mining,1,3,17,copper_rock
+tin_rock,Tin rock,,A vein of tin ore.,1,1,true,bronze_pickaxe,Mining,1,3,17,tin_rock
+iron_rock,Iron rock,,A vein of iron ore.,1,1,true,iron_pickaxe,Mining,15,3,35,iron_rock
+coal_rock,Coal rock,,A seam of coal.,1,1,true,iron_pickaxe,Mining,30,3,50,coal_rock

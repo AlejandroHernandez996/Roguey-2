@@ -1,0 +1,9 @@
+---,AreaId,ObjectTypeId,MinCount,MaxCount,bEdgePreferred
+forest_1_oak_tree,forest_1,oak_tree,8,14,false
+forest_1_dead_tree,forest_1,dead_tree,2,4,false
+forest_1_large_rock,forest_1,large_rock,2,4,true
+dungeon_1_large_rock,dungeon_1,large_rock,4,8,true
+dungeon_1_copper_rock,dungeon_1,copper_rock,2,4,true
+dungeon_1_tin_rock,dungeon_1,tin_rock,2,4,true
+boss_1_large_rock,boss_1,large_rock,3,6,true
+boss_1_coal_rock,boss_1,coal_rock,1,3,true

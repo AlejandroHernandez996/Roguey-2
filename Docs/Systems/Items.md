@@ -128,3 +128,85 @@ Both tables are assigned in **Project Settings → Roguey → Items** (`NpcTable
 2. `URogueyActionManager::SetTakeLootAction` — paths toward the drop's tile
 3. `TickTakeLoot` — when Chebyshev distance ≤ 1, calls `Drop->TakeItem(Pawn)`
 4. `TakeItem` stacks into existing slot (if stackable) or first empty slot; destroys drop on success; does nothing if inventory full
+
+---
+
+## World Objects (Scenery / Gathering)
+
+World objects are interactable scenery (trees, rocks, ore veins, fishing spots). They are `ARogueyObject` actors spawned at level load by `URogueyLevelGenerator`. Their static data lives in `DT_Objects`.
+
+### `FRogueyObjectRow` (DataTable row)
+
+Rows live in `DT_Objects`. Row name = `ObjectTypeId` (e.g. `oak_tree`, `copper_rock`).
+
+| Field | Purpose |
+|---|---|
+| `ObjectName` | Display name shown in context menu and target panel |
+| `ObjectClass` | Optional Blueprint subclass of `ARogueyObject` to spawn. Leave empty to use the base class with procedural geometry. |
+| `ExamineText` | Shown on Examine |
+| `TileWidth / TileHeight` | NxM tile footprint (default 1×1). Object registers all tiles it occupies. |
+| `bBlocksMovement` | Whether the object blocks pathfinding. Most scenery = true. |
+| `RequiredToolItemId` | Item that must be in inventory to interact (e.g. `bronze_axe`). Empty = always interactable. |
+| `Skill` | `ERogueyStatType` — which skill is trained and which action label is shown (`Chop / Mine / Gather`). |
+| `RequiredLevel` | Minimum skill level to interact. |
+| `GatherTicks` | Game ticks the gather action takes before yielding a resource (e.g. 4 = 2.4 s). |
+| `XpPerAction` | XP awarded per successful gather. |
+| `LootTableId` | Row-key prefix in `DT_LootTables` for what this object drops (same weighted format as NPC drops). Empty = no loot. |
+
+### `URogueyObjectRegistry`
+
+`UGameInstanceSubsystem` — loads at startup on both server and client.
+
+```cpp
+const FRogueyObjectRow*  Row  = URogueyObjectRegistry::Get(WorldCtx)->FindObject(ObjectTypeId);
+TArray<FRogueyLootEntry> Loot = URogueyObjectRegistry::Get(WorldCtx)->GetLootEntries(LootTableId);
+TArray<FName>            Ids  = URogueyObjectRegistry::Get(WorldCtx)->GetAllObjectTypeIds();
+```
+
+Assign `DT_Objects` in **Project Settings → Roguey → Data Tables: ObjectTable**.
+
+### `ARogueyObject`
+
+Replicated actor. `ObjectTypeId` replicates via `ReplicatedUsing=OnRep_ObjectTypeId`.
+
+**Server `BeginPlay` order (matters):**
+1. Resolve `TileExtent` from registry (before grid registration — grid uses it for footprint)
+2. `ApplyDefaultMesh` — sets procedural geometry based on `Skill` and `TileExtent`:
+   - `Woodcutting`: tall narrow Cylinder, scaled to footprint width, 3m per tile height
+   - `Mining`: low wide Sphere, scaled to footprint
+   - Default: flat Cube, 75% of footprint width, 60% height
+3. `RegisterActor(this, WorldToTile(Location))` — occupies all `TileWidth × TileHeight` tiles in `URogueyGridManager`
+
+**Client:** `OnRep_ObjectTypeId` fires → `ApplyDefaultMesh` (mesh visible before grid registration is needed client-side).
+
+`TileExtent` is also replicated so clients have the correct footprint for any future client-side queries.
+
+Objects **do** register with `URogueyGridManager` (unlike loot drops) — they block pathfinding.
+
+### Gather Flow
+
+```
+[Player]  right-click tree → "Chop" → Server_RequestActorAction(Object, "Gather")
+[Server]  ActionManager::SetGatherAction
+            → FindBestAttackTile using Object->TileExtent (not hardcoded 1×1)
+            → path toward adjacent tile
+[Server]  TickGatherMove each tick
+            → IsInAttackRange(..., ObjExtent, range=1) — adjacent to any footprint edge
+            → on adjacent: set Action.Type = Gather, TicksRemaining = Row->GatherTicks
+[Server]  TickGather each tick
+            → decrements TicksRemaining
+            → on 0: awards XP, rolls loot, spawns ARogueyLootDrop at pawn tile
+            → restarts cycle (GatherMove → Gather) for continuous gathering
+```
+
+Level-up triggers `ShowSpeechBubble("Woodcutting level N!")` on the pawn.
+
+### Area Object Spawning
+
+Per-area spawn config lives in `DT_AreaObjects` (`FRogueyAreaObjectRow`). Assign in **Project Settings → Roguey → Data Tables: AreaObjectTable**.
+
+`URogueyLevelGenerator::SpawnObjects` (called once at level load):
+1. Collects all walkable tiles with no actor, excluding `PlayerStartTiles`, shuffled randomly
+2. For each matching `DT_AreaObjects` row: rolls `RandRange(MinCount, MaxCount)` objects
+3. For each object: scans forward in the shuffled list for a tile whose full NxM footprint is free
+4. Reserves the footprint, centers the world position across it, deferred-spawns the actor so `ObjectTypeId` is set before `BeginPlay`

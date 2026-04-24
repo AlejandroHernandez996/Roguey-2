@@ -22,12 +22,14 @@ class ROGUEY_API ARogueyNpc : public ARogueyPawn, public IRogueyInteractable
 public:
 	ARogueyNpc();
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	virtual TArray<FRogueyActionDef> GetActions()    const override;
 	virtual FText   GetTargetName()  const override;
 	virtual FString GetExamineText() const override;
 
 	// DataTable row key that identifies this NPC type (e.g. "goblin"). Set per placed actor.
-	UPROPERTY(EditAnywhere, Category = "NPC")
+	UPROPERTY(EditAnywhere, Replicated, Category = "NPC")
 	FName NpcTypeId;
 
 	// Runtime AI behavior — initialized from row in BeginPlay, kept writable for debug overrides.

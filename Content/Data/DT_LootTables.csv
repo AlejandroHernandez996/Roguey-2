@@ -7,3 +7,10 @@ skeleton_coins,coins,10,40
 skeleton_iron_sword,iron_sword,1,15
 rat_bones,bones,1,80
 rat_shrimp,shrimp,1,60
+oak_tree_logs,oak_logs,1,100
+willow_tree_logs,willow_logs,1,100
+yew_tree_logs,yew_logs,1,100
+copper_rock_ore,copper_ore,1,100
+tin_rock_ore,tin_ore,1,100
+iron_rock_ore,iron_ore,1,100
+coal_rock_coal,coal,1,100

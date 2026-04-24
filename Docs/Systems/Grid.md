@@ -44,13 +44,17 @@ CanActorMoveTo(Actor, NewOrigin) // reads Actor's TileExtent, calls CanMoveTo
 
 ## Multi-tile Footprints
 
-`TileExtent = FIntPoint(W, H)` on `ARogueyPawn`. `TilePosition` is the **top-left** corner. A 2×2 pawn at (3,3) occupies tiles (3,3), (4,3), (3,4), (4,4).
+Both `ARogueyPawn` and `ARogueyObject` carry `TileExtent = FIntPoint(W, H)`. `TilePosition` / `RegisterActor` tile is the **top-left** corner. A 2×2 actor at (3,3) occupies tiles (3,3), (4,3), (3,4), (4,4).
+
+`GetPawnExtent` (static in `RogueyGridManager.cpp`) handles both types — it casts to `ARogueyPawn` first, then `ARogueyObject`, defaulting to (1,1).
 
 `CanActorMoveTo` checks all `W × H` tiles at the candidate origin. The pathfinder uses `CanMoveTo(From, To, Extent)` which does the same without a specific actor reference.
 
+Multi-tile actors never move diagonally — sweeping a footprint through a corner is unsound. This is enforced in both `CanActorMoveTo` and `CanMoveTo`.
+
 ## Adjacency
 
-`IsAdjacent(A, B)` — cardinal only (no diagonals). Grid movement is always N/S/E/W.
+`IsAdjacent(A, B)` — Chebyshev check (`|dx| ≤ 1 && |dy| ≤ 1`), meaning it returns true for diagonal neighbours too. Used for attack-range and talk-range testing, **not** for movement (movement is always cardinal). Do not confuse with walkability checks which are 4-directional only.
 
 ## Terrain vs. Grid
 
