@@ -5,7 +5,6 @@
 #include "RogueyObjectRegistry.h"
 #include "Roguey/RogueyGameMode.h"
 #include "Roguey/Core/RogueyConstants.h"
-#include "Roguey/Core/RogueyRunState.h"
 #include "Roguey/Grid/RogueyGridManager.h"
 #include "Roguey/Items/RogueyItemSettings.h"
 #include "Roguey/Npcs/RogueyNpc.h"
@@ -15,10 +14,6 @@
 void URogueyLevelGenerator::Generate(ARogueyGameMode* GM, const FRogueyAreaRow& Row, FName AreaId, int32 Seed)
 {
 	if (!GM || !GM->GridManager || !GM->Terrain) return;
-
-	if (Row.bClearRunStateOnEnter)
-		if (URogueyRunState* RS = URogueyRunState::Get(GM))
-			RS->ClearAllSavedPlayers();
 
 	// Generate layout
 	FRogueyGeneratorResult Result = URogueyAreaGenerator::Generate(Row, Seed);
@@ -215,11 +210,6 @@ void URogueyLevelGenerator::SpawnPortal(ARogueyGameMode* GM, const FRogueyAreaRo
 {
 	if (ExitTile.X < 0) return;
 
-	// Resolve destination level from GameMode's path map
-	FString DestLevel;
-	if (const FString* Found = GM->AreaLevelPaths.Find(Row.NextAreaId))
-		DestLevel = *Found;
-
 	FVector WorldPos = GM->GridManager->TileToWorld(ExitTile);
 	WorldPos.Z = GM->Terrain->GetTileHeight(ExitTile) + RogueyConstants::PawnHoverHeight;
 
@@ -229,9 +219,9 @@ void URogueyLevelGenerator::SpawnPortal(ARogueyGameMode* GM, const FRogueyAreaRo
 	ARogueyPortal* Portal = GM->GetWorld()->SpawnActor<ARogueyPortal>(ARogueyPortal::StaticClass(), FTransform(WorldPos), Params);
 	if (Portal)
 	{
-		Portal->DestinationLevel      = DestLevel;
-		Portal->bRequiresClearRoom    = Row.bRequireClearForPortal;
-		Portal->PortalName            = Row.NextAreaId.IsNone()
+		Portal->NextAreaId         = Row.NextAreaId;
+		Portal->bRequiresClearRoom = Row.bRequireClearForPortal;
+		Portal->PortalName         = Row.NextAreaId.IsNone()
 			? FText::FromString(TEXT("Exit"))
 			: FText::FromName(Row.NextAreaId);
 	}

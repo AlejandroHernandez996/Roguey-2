@@ -1,0 +1,539 @@
+﻿{
+	"devices": [
+		{
+			"deviceName": "DESKTOP-A8VT222",
+			"instance": "160678C34E9C624AB76E778EBAA3C227",
+			"instanceName": "DESKTOP-A8VT222-44400",
+			"platform": "WindowsEditor",
+			"oSVersion": "Windows 11 (25H2) [10.0.26200.8037] ",
+			"model": "Default",
+			"gPU": "NVIDIA GeForce RTX 3090",
+			"cPUModel": "Intel(R) Core(TM) i9-10850K CPU @ 3.60GHz",
+			"rAMInGB": 32,
+			"renderMode": "SM6",
+			"rHI": "",
+			"appInstanceLog": ""
+		}
+	],
+	"reportCreatedOn": "2026.04.22-17.23.39",
+	"succeeded": 34,
+	"succeededWithWarnings": 0,
+	"failed": 0,
+	"notRun": 0,
+	"inProcess": 0,
+	"totalDuration": 0.28009021282196045,
+	"comparisonExported": false,
+	"comparisonExportDirectory": "",
+	"tests": [
+		{
+			"testDisplayName": "1x1CardinalAdjacent",
+			"fullTestPath": "Roguey.Action.Range.1x1CardinalAdjacent",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.007953401654958725,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "1x1ChebyshevAdjacent",
+			"fullTestPath": "Roguey.Action.Range.1x1ChebyshevAdjacent",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0081200003623962402,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "1x1vs2x2",
+			"fullTestPath": "Roguey.Action.Range.1x1vs2x2",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0081551000475883484,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "2x2vs1x1",
+			"fullTestPath": "Roguey.Action.Range.2x2vs1x1",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0080526992678642273,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "Ranged",
+			"fullTestPath": "Roguey.Action.Range.Ranged",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0083785019814968109,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "2x2FootprintWall",
+			"fullTestPath": "Roguey.Grid.CanActorMoveTo.2x2FootprintWall",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0090014003217220306,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "BlockerPawn",
+			"fullTestPath": "Roguey.Grid.CanActorMoveTo.BlockerPawn",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082251988351345062,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "TerrainBlock",
+			"fullTestPath": "Roguey.Grid.CanActorMoveTo.TerrainBlock",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082615986466407776,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "2x2",
+			"fullTestPath": "Roguey.Grid.MoveActor.2x2",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0080625005066394806,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "1x1",
+			"fullTestPath": "Roguey.Grid.Register.1x1",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0085455998778343201,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "2x2",
+			"fullTestPath": "Roguey.Grid.Register.2x2",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.008179299533367157,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "2x2",
+			"fullTestPath": "Roguey.Grid.Unregister.2x2",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0081039033830165863,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "CanMoveCardinal",
+			"fullTestPath": "Roguey.Grid.CanMoveCardinal",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0080210976302623749,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "CanMoveDiagonal",
+			"fullTestPath": "Roguey.Grid.CanMoveDiagonal",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082683004438877106,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "StopsMovement",
+			"fullTestPath": "Roguey.Movement.BlockedTile.StopsMovement",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0081204995512962341,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "ReachesGoalAndIdles",
+			"fullTestPath": "Roguey.Movement.FullPath.ReachesGoalAndIdles",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0081117004156112671,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "InitiallyFalse",
+			"fullTestPath": "Roguey.Movement.HasPendingMove.InitiallyFalse",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0083389990031719208,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "ReplacesExistingPath",
+			"fullTestPath": "Roguey.Movement.RequestMove.ReplacesExistingPath",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.008310999721288681,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "AdvancesOneTile",
+			"fullTestPath": "Roguey.Movement.SingleTick.AdvancesOneTile",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082636028528213501,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "RequestAndCancel",
+			"fullTestPath": "Roguey.Movement.RequestAndCancel",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0079180002212524414,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "AllAdjacentBlocked",
+			"fullTestPath": "Roguey.Pathfinder.ToAdjacent.AllAdjacentBlocked",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0085097998380661011,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "AlreadyAdjacent",
+			"fullTestPath": "Roguey.Pathfinder.ToAdjacent.AlreadyAdjacent",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0085685029625892639,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "FindsPath",
+			"fullTestPath": "Roguey.Pathfinder.ToAdjacent.FindsPath",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.008337799459695816,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "BasicDiagonalPath",
+			"fullTestPath": "Roguey.Pathfinder.BasicDiagonalPath",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0079593993723392487,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "CardinalPath",
+			"fullTestPath": "Roguey.Pathfinder.CardinalPath",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082071013748645782,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "Continuity",
+			"fullTestPath": "Roguey.Pathfinder.Continuity",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0083575993776321411,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "GoalBlocked",
+			"fullTestPath": "Roguey.Pathfinder.GoalBlocked",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0083014965057373047,
+			"dateTime": "2026.04.22-17.23.38",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "GoalOutOfBounds",
+			"fullTestPath": "Roguey.Pathfinder.GoalOutOfBounds",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0081040002405643463,
+			"dateTime": "2026.04.22-17.23.39",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "GoalSurrounded",
+			"fullTestPath": "Roguey.Pathfinder.GoalSurrounded",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0077976994216442108,
+			"dateTime": "2026.04.22-17.23.39",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "NarrowCorridor",
+			"fullTestPath": "Roguey.Pathfinder.NarrowCorridor",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0084065981209278107,
+			"dateTime": "2026.04.22-17.23.39",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "NoCornerCutting",
+			"fullTestPath": "Roguey.Pathfinder.NoCornerCutting",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.008402898907661438,
+			"dateTime": "2026.04.22-17.23.39",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "Optimality",
+			"fullTestPath": "Roguey.Pathfinder.Optimality",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082208998501300812,
+			"dateTime": "2026.04.22-17.23.39",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "PathAroundWall",
+			"fullTestPath": "Roguey.Pathfinder.PathAroundWall",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082747004926204681,
+			"dateTime": "2026.04.22-17.23.39",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "StartEqualsGoal",
+			"fullTestPath": "Roguey.Pathfinder.StartEqualsGoal",
+			"tags": [],
+			"state": "Success",
+			"deviceInstance": [
+				"160678C34E9C624AB76E778EBAA3C227"
+			],
+			"duration": 0.0082492977380752563,
+			"dateTime": "2026.04.22-17.23.39",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		}
+	]
+}

@@ -28,23 +28,6 @@ enum class EAreaTilePalette : uint8
 	ForestGround  UMETA(DisplayName = "Forest Ground"),   // dark-green non-walkable, earthy floor
 };
 
-// ── NpcSpawnEntry — used by ARogueyRoomDirector (temporary hand-authored director) ──
-
-USTRUCT(BlueprintType)
-struct FRogueyNpcSpawnEntry
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FDataTableRowHandle NpcType;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MinCount = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MaxCount = 1;
-};
-
 // ── Flat pool rows — one row per entry, keyed "{areaId}_{suffix}" ─────────────
 
 // Row in DT_AreaNpcs. Row name convention: "{areaId}_{npcTypeId}" e.g. "forest_1_goblin".
@@ -145,7 +128,4 @@ struct ROGUEY_API FRogueyAreaRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Progression")
 	bool bRequireClearForPortal = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Progression")
-	bool bClearRunStateOnEnter = false;
 };

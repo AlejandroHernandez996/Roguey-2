@@ -1,7 +1,6 @@
 #include "RogueyPortal.h"
 
 #include "EngineUtils.h"
-#include "Kismet/GameplayStatics.h"
 #include "Roguey/Core/RogueyActionNames.h"
 #include "Roguey/Core/RogueyPawn.h"
 #include "Roguey/Npcs/RogueyNpc.h"
@@ -14,13 +13,11 @@ ARogueyPortal::ARogueyPortal()
 
 void ARogueyPortal::TryEnter(ARogueyPawn* Pawn)
 {
-	if (!HasAuthority() || DestinationLevel.IsEmpty()) return;
+	if (!HasAuthority() || NextAreaId.IsNone()) return;
 	if (bRequiresClearRoom && IsRoomStillHostile()) return;
 
 	if (ARogueyGameMode* GM = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode()))
-		GM->SaveAllPlayersForTravel();
-
-	GetWorld()->ServerTravel(DestinationLevel);
+		GM->ResetArea(NextAreaId);
 }
 
 bool ARogueyPortal::IsRoomStillHostile() const

@@ -4,6 +4,11 @@
 
 void URogueyGridManager::Init(int32 Width, int32 Height)
 {
+	// Caller must unregister all actors before reinitialising — Init only resets tile topology.
+	ensure(ActorLocations.IsEmpty());
+	ActorLocations.Empty();
+	TileOccupancy.Empty();
+
 	GridDimensions = FIntVector2(Width, Height);
 	Grid.Init(Width, Height);
 }

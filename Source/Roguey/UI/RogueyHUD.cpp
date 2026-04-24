@@ -12,7 +12,6 @@
 #include "Roguey/Npcs/RogueyNpc.h"
 #include "Roguey/Npcs/RogueyNpcRegistry.h"
 #include "Roguey/RogueyGameMode.h"
-#include "Roguey/World/RogueyRoomDirector.h"
 #include "Roguey/Skills/RogueyStat.h"
 #include "Roguey/Skills/RogueyStatType.h"
 
@@ -1207,15 +1206,14 @@ void ARogueyHUD::DrawRoomName()
 	if (!F) return;
 
 	FString RoomLabel;
-	for (TActorIterator<ARogueyRoomDirector> It(GetWorld()); It; ++It)
+	if (ARogueyGameMode* GM = GetWorld()->GetAuthGameMode<ARogueyGameMode>())
 	{
-		switch ((*It)->RoomType)
+		switch (GM->CurrentRoomType)
 		{
 		case ERoomType::Hub:    RoomLabel = TEXT("Hub");    break;
 		case ERoomType::Combat: RoomLabel = TEXT("Combat"); break;
 		case ERoomType::Boss:   RoomLabel = TEXT("Boss");   break;
 		}
-		break;
 	}
 
 	if (RoomLabel.IsEmpty()) return;

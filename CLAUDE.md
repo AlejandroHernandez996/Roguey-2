@@ -76,8 +76,9 @@ Things that are stubbed, incomplete, or deferred. Update this list as work lands
 - **`bEdgePreferred`** on `FRogueyAreaObjectRow` is parsed but not wired into the generator's tile selection.
 - **`ARogueyRoomDirector`** is legacy dead code — not used by any current level.
 - **Combat triangle** (melee/ranged/magic advantages) not implemented.
-- **Boss room** — `dungeon_lord` NPC + skeleton adds in DT_AreaNpcs. Portal requires clear, then travels back to `hub` (fresh run). **Editor step:** add `"hub" → "/Game/Roguey/Levels/Lvl_Hub"` to `AreaLevelPaths` on the boss level's `BP_RogueyGameMode`.
+- **Boss room** — `dungeon_lord` NPC + skeleton adds in DT_AreaNpcs. Portal requires clear, then resets to `hub` area in-place.
 - **Game-over / restart flow** not started.
+- **Fresh-run reset on hub entry** — `bClearRunStateOnEnter` was removed with `URogueyRunState`. When `ResetArea("hub")` is called, player stats/inventory persist. A proper "reset run" mechanic needs designing when game-over is built.
 - **Target panel** uses `GetAuthGameMode` — works on listen-server host only; clients need replicated `AttackTarget` for multiplayer UI.
 - **Gathering tool validation** — `RequiredToolItemId` is stored in `FRogueyObjectRow` but `TickGatherMove`/`TickGather` do not yet check the player's inventory for it.
 - **Misc item "Use" action** is a no-op placeholder.

@@ -15,9 +15,9 @@ class ROGUEY_API ARogueyPortal : public AActor, public IRogueyInteractable
 public:
 	ARogueyPortal();
 
-	// Level to travel to on Enter. Set in Blueprint subclass or placed instance.
+	// Row key in DT_Areas for the next area. Empty = end of run (portal does nothing).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
-	FString DestinationLevel;
+	FName NextAreaId;
 
 	// Display name shown on hover and in the context menu.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")

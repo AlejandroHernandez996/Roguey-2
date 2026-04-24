@@ -69,16 +69,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Generation")
 	FName AreaRowName;
 
-	// Maps area row keys to level paths for portal travel. e.g. "forest_1" -> "/Game/.../Lvl_Forest"
-	UPROPERTY(EditAnywhere, Category = "Generation")
-	TMap<FName, FString> AreaLevelPaths;
+	// Cached from the area row after generation — read by HUD for the room label.
+	ERoomType CurrentRoomType = ERoomType::Combat;
 
 	// Blueprint class used by the dev spawn menu (assign BP_RogueyNpc here).
 	UPROPERTY(EditAnywhere, Category = "NPCs")
 	TSubclassOf<ARogueyNpc> NpcClass;
 
-	// Call before ServerTravel: snapshots every active player pawn into URogueyRunState.
-	void SaveAllPlayersForTravel();
+	// Destroys all NPCs/objects/portals/loot, regenerates the named area, and teleports all players.
+	void ResetArea(FName NewAreaId);
 
 protected:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
@@ -88,6 +87,7 @@ protected:
 private:
 	void OnGameTick();
 	void SpawnAndPossessCharacter(APlayerController* PC);
+	FIntPoint FindBestStartTile(int32 PlayerIndex) const;
 
 	int32 PlayerSpawnCount = 0;
 

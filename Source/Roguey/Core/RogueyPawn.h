@@ -77,6 +77,9 @@ public:
 	// RunStep is the intermediate tile when running (two tiles per tick); pass (-1,-1) for a normal walk step.
 	void CommitMove(FIntVector2 NewTile, FIntVector2 RunStep = FIntVector2(-1, -1));
 
+	// Flush the visual interpolation queue — call before teleporting so the pawn doesn't animate to old tiles.
+	void ClearVisualQueue() { TrueTileQueue.Empty(); }
+
 	// Client calls this; server validates, pathfinds, and queues the move
 	UFUNCTION(Server, Reliable)
 	void Server_RequestMoveTo(FIntPoint TargetTile, bool bRunning);

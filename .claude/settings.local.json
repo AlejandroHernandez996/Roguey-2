@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python /c/Users/aleja/extract_transcript.py /c/Users/aleja/.claude/projects/C--Users-aleja/3aebd52e-6388-42d6-be04-19d487cca09b.jsonl)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(xargs grep *)",
+      "Bash(python /c/Users/aleja/extract_transcript.py \"C:/Users/aleja/.claude/projects/C--Users-aleja/3aebd52e-6388-42d6-be04-19d487cca09b.jsonl\")",
+      "Bash(gh auth *)",
+      "Bash(where gh *)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "PowerShell(winget list GitHub.cli 2>&1)",
+      "PowerShell(winget install --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements 2>&1)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); gh --version)",
+      "Bash(git credential *)",
+      "Bash(/c/Users/aleja/gamedev/UnrealEngine/Engine/Binaries/Win64/UnrealEditor.exe C:/Users/aleja/gamedev/Roguey/Roguey.uproject '-ExecCmds=Automation RunTests Roguey; Quit' '-TestExit=Automation Test Queue Empty' -ReportOutputPath=C:/Users/aleja/gamedev/Roguey/TestResults -Unattended -NullRHI -NoSplash -NoSound)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(python3 -c \" import json,sys d=json.load\\(sys.stdin\\) tests=d.get\\('tests',[]\\) passed=[t for t in tests if t.get\\('state'\\)=='Success'] failed=[t for t in tests if t.get\\('state'\\)!='Success'] print\\(f'Passed: {len\\(passed\\)}/{len\\(tests\\)}'\\) for t in failed: print\\('FAIL:', t.get\\('fullTestPath'\\), t.get\\('state'\\)\\) for t in passed: print\\('PASS:', t.get\\('fullTestPath'\\)\\) \")",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -fL https://raw.githubusercontent.com/runelite/runelite/master/runelite-client/src/main/resources/net/runelite/client/ui/__TRACKED_VAR__ -o C:/Users/aleja/gamedev/Roguey/Content/Fonts/__TRACKED_VAR__)",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "WebFetch(domain:oldschool.runescape.wiki)",
+      "Bash(git *)",
+      "Bash(\"C:\\\\Program Files\\\\Epic Games\\\\UE_5.5\\\\Engine\\\\Build\\\\BatchFiles\\\\Build.bat\" Roguey Win64 Development -Project=\"C:\\\\Users\\\\aleja\\\\gamedev\\\\Roguey\\\\Roguey.uproject\")",
+      "Read(//c/Program Files/Epic Games//**)",
+      "Read(//c/Program Files/Epic Games/**)",
+      "Bash(\"C:/Program Files/Epic Games/UE_5.5/Engine/Build/BatchFiles/Build.bat\" RogueyEditor Win64 Development -Project=\"C:/Users/aleja/gamedev/Roguey/Roguey.uproject\")"
+    ]
+  }
+}
