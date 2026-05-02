@@ -6,6 +6,7 @@
 #include "Roguey/Core/RogueyActionNames.h"
 #include "Roguey/Core/RogueyPawn.h"
 #include "Roguey/Items/RogueyItemRegistry.h"
+#include "Roguey/Core/RogueyConstants.h"
 
 ARogueyLootDrop::ARogueyLootDrop()
 {
@@ -74,32 +75,15 @@ void ARogueyLootDrop::TakeItem(ARogueyPawn* Taker)
 {
 	if (!IsValid(Taker) || Item.IsEmpty()) return;
 
-	URogueyItemRegistry* Reg = URogueyItemRegistry::Get(this);
-	const FRogueyItemRow* Row = Reg ? Reg->FindItem(Item.ItemId) : nullptr;
-
-	// Try to stack into an existing slot first
-	if (Row && Row->bStackable)
+	if (Taker->TryAddItem(Item))
 	{
-		for (FRogueyItem& Slot : Taker->Inventory)
-		{
-			if (Slot.ItemId == Item.ItemId)
-			{
-				Slot.Quantity = FMath::Min(Slot.Quantity + Item.Quantity, Row->MaxStack);
-				Destroy();
-				return;
-			}
-		}
+		FString ItemName = Item.ItemId.ToString();
+		if (const URogueyItemRegistry* Reg = URogueyItemRegistry::Get(this))
+			if (const FRogueyItemRow* Row = Reg->FindItem(Item.ItemId))
+				ItemName = Row->DisplayName;
+		Taker->PostGameMessage(FString::Printf(TEXT("You pick up the %s."), *ItemName), RogueyChat::Game);
+		Destroy();
 	}
-
-	// Place in first empty slot
-	for (FRogueyItem& Slot : Taker->Inventory)
-	{
-		if (Slot.IsEmpty())
-		{
-			Slot = Item;
-			Destroy();
-			return;
-		}
-	}
-	// Inventory full — leave on ground
+	else
+		Taker->PostGameMessage(TEXT("Your inventory is too full to pick that up."), RogueyChat::Warning);
 }

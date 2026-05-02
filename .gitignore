@@ -76,3 +76,12 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Claude Code
+.claude/
+
+# Test results
+TestResults/
+
+# JetBrains Rider user-specific settings
+*.DotSettings.user

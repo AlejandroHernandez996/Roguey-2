@@ -19,6 +19,40 @@ enum class EAreaGenAlgorithm : uint8
 {
 	BSP              UMETA(DisplayName = "BSP (rooms + corridors)"),
 	CellularAutomata UMETA(DisplayName = "Cellular Automata (organic)"),
+	OpenRoom         UMETA(DisplayName = "Open Room (single arena)"),
+	Village          UMETA(DisplayName = "Village (hub town)"),
+	Forest           UMETA(DisplayName = "Forest (open canopy)"),
+};
+
+UENUM(BlueprintType)
+enum class EForestZoneType : uint8
+{
+	Any        UMETA(DisplayName = "Any"),
+	Forest     UMETA(DisplayName = "Forest (dense canopy)"),
+	Trail      UMETA(DisplayName = "Trail (carved path)"),
+	Clearing   UMETA(DisplayName = "Clearing (open circle)"),
+	Edge       UMETA(DisplayName = "Edge (border-adjacent)"),
+	Water      UMETA(DisplayName = "Water (pond/river)"),
+	MiningZone UMETA(DisplayName = "Mining Zone"),
+	LumberZone UMETA(DisplayName = "Lumber Zone (logging clearing)"),
+	RuinsZone  UMETA(DisplayName = "Ruins Zone (ruined structure interior)"),
+	CampZone   UMETA(DisplayName = "Camp Zone (campfire perimeter)"),
+};
+
+UENUM(BlueprintType)
+enum class EForestBiomeType : uint8
+{
+	Default        UMETA(DisplayName = "Default"),
+	LumberArea     UMETA(DisplayName = "Lumber Area"),
+	MiningOutpost  UMETA(DisplayName = "Mining Outpost"),
+	Lake           UMETA(DisplayName = "Lake"),
+	River          UMETA(DisplayName = "River"),
+	RuneAltar      UMETA(DisplayName = "Rune Altar"),
+	BossArena      UMETA(DisplayName = "Boss Arena"),
+	Campfire       UMETA(DisplayName = "Campfire"),
+	HauntedBog     UMETA(DisplayName = "Haunted Bog"),
+	StoneDruid     UMETA(DisplayName = "Stone Druid Circle"),
+	AncientGrove   UMETA(DisplayName = "Ancient Grove"),
 };
 
 UENUM(BlueprintType)
@@ -49,6 +83,13 @@ struct ROGUEY_API FRogueyAreaNpcRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 MaxCount = 1;
+
+	// Threat tier gate (0=Easy … 4=HAHAHA). NPC only spawns when current tier is in [Min,Max].
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 MinThreatTier = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 MaxThreatTier = 4;
 };
 
 // Row in DT_AreaObjects. Row name convention: "{areaId}_{objectTypeId}" e.g. "forest_1_oak_tree".
@@ -74,6 +115,10 @@ struct ROGUEY_API FRogueyAreaObjectRow : public FTableRowBase
 	// If true, generator prefers tiles adjacent to walls (good for rocks/ores).
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bEdgePreferred = false;
+
+	// Zone preference for forest areas. Any = no zone restriction (correct default for non-forest areas).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EForestZoneType ObjectZone = EForestZoneType::Any;
 };
 
 // ── Area row ──────────────────────────────────────────────────────────────────
@@ -107,15 +152,69 @@ struct ROGUEY_API FRogueyAreaRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|BSP")
 	int32 BspMaxRoomSize = 16;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|BSP")
-	int32 BspMinRoomCount = 5;
-
 	// ── CA params ──────────────────────────────────────────────────────────────
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|CellularAutomata", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float CaFillRatio = 0.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|CellularAutomata")
 	int32 CaIterations = 5;
+
+	// ── Village params ─────────────────────────────────────────────────────────
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Village")
+	int32 VillageMinBuildings = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Village")
+	int32 VillageMaxBuildings = 8;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Village")
+	int32 VillagePlazaRadius = 6;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Village")
+	int32 VillageRoadWidth = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Village")
+	int32 VillageSideRoadWidth = 2;
+
+	// ── Forest params ──────────────────────────────────────────────────────────
+	// Initial fill ratio for inverted CA: lower = more open (20% = 80% floor).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ForestDensity = 0.20f;
+
+	// Smoothing passes (fewer than cave keeps scattered clusters).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestCaIterations = 3;
+
+	// Number of winding trails carved from entry to exit side.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestNumTrails = 2;
+
+	// Number of circular open clearings stamped.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestNumClearings = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestClearingRadiusMin = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestClearingRadiusMax = 5;
+
+	// Number of pond blobs to generate. 0 = no water.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestNumPonds = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestPondRadiusMin = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestPondRadiusMax = 6;
+
+	// Number of rivers to carve from top edge to bottom edge. 0 = no rivers.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestNumRivers = 0;
+
+	// Half-width of river corridor in tiles.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation|Forest")
+	int32 ForestRiverWidth = 2;
 
 	// ── Visual ─────────────────────────────────────────────────────────────────
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual")
@@ -127,5 +226,9 @@ struct ROGUEY_API FRogueyAreaRow : public FTableRowBase
 	FName NextAreaId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Progression")
-	bool bRequireClearForPortal = true;
+	bool bRequireClearForPortal = false;
+
+	// If true, the spawned exit portal triggers BeginEndlessForest instead of a normal area transition.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Progression")
+	bool bPortalIsEndlessEntry = false;
 };

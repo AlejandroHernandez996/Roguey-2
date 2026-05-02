@@ -22,6 +22,12 @@ public:
 
 	static URogueyObjectRegistry* Get(const UObject* WorldContext);
 
+#if WITH_DEV_AUTOMATION_TESTS
+	// Directly populate the caches for unit tests — bypasses DataTable loading.
+	void TestInjectObject(FName ObjectTypeId, FRogueyObjectRow* Row) { ObjectCache.Add(ObjectTypeId, Row); }
+	void TestInjectLoot(FName LootTableId, TArray<FRogueyLootEntry> Entries) { LootCache.Add(LootTableId, MoveTemp(Entries)); }
+#endif
+
 private:
 	UPROPERTY()
 	TArray<TObjectPtr<UDataTable>> LoadedTables;

@@ -3,6 +3,7 @@
 #include "DrawDebugHelpers.h"
 #include "EngineUtils.h"
 #include "RogueyNpc.h"
+#include "RogueyForestBoss.h"
 #include "Roguey/RogueyCharacter.h"
 #include "Roguey/Grid/RogueyGridManager.h"
 #include "Roguey/Core/RogueyMovementManager.h"
@@ -21,7 +22,7 @@ void URogueyNpcManager::RogueyTick(int32 TickIndex)
 	for (TActorIterator<ARogueyNpc> It(GetWorld()); It; ++It)
 	{
 		ARogueyNpc* Npc = *It;
-		if (!IsValid(Npc) || Npc->IsDead()) continue;
+		if (!ARogueyPawn::IsAlive(Npc)) continue;
 		TickNpc(Npc, TickIndex);
 	}
 }
@@ -32,7 +33,21 @@ void URogueyNpcManager::RogueyTick(int32 TickIndex)
 
 void URogueyNpcManager::TickNpc(ARogueyNpc* Npc, int32 TickIndex)
 {
-	if (Npc->Behavior == ENpcBehavior::Friendly) return;
+	// Forest boss uses a completely separate AI path — no wandering, no leashing, no LastAttacker drain.
+	if (ARogueyForestBoss* Boss = Cast<ARogueyForestBoss>(Npc))
+	{
+		Boss->TickBossAbilities(TickIndex);
+		if (Boss->IsBossActive())
+			TickBossCombat(Boss, TickIndex);
+		return;
+	}
+
+	// Friendly NPCs wander but never aggro or enter combat — skip all combat transitions.
+	if (Npc->Behavior == ENpcBehavior::Friendly)
+	{
+		TickIdle(Npc, TickIndex);
+		return;
+	}
 
 	// Always drain LastAttacker — leaving it set causes target-switching and bounce loops.
 	if (Npc->LastAttacker.IsValid())
@@ -42,7 +57,7 @@ void URogueyNpcManager::TickNpc(ARogueyNpc* Npc, int32 TickIndex)
 
 		// Only react in Idle: mid-combat hits don't change the target, and a returning
 		// NPC should finish walking home before it can be re-engaged.
-		if (Npc->AiState == ENpcAiState::Idle && IsValid(Attacker) && !Attacker->IsDead())
+		if (Npc->AiState == ENpcAiState::Idle && ARogueyPawn::IsAlive(Attacker))
 		{
 			Npc->AggroTarget = Attacker;
 			Npc->AiState     = ENpcAiState::Combat;
@@ -60,7 +75,8 @@ void URogueyNpcManager::TickNpc(ARogueyNpc* Npc, int32 TickIndex)
 	}
 
 #if ENABLE_DRAW_DEBUG
-	DrawNpcDebug(Npc);
+	if (bNpcDebugEnabled)
+		DrawNpcDebug(Npc);
 #endif
 }
 
@@ -102,7 +118,7 @@ void URogueyNpcManager::TickCombat(ARogueyNpc* Npc, int32 TickIndex)
 {
 	ARogueyPawn* Target = Npc->AggroTarget.Get();
 
-	const bool bTargetGone = !IsValid(Target) || Target->IsDead();
+	const bool bTargetGone = !ARogueyPawn::IsAlive(Target);
 	const bool bLeashed    = ChebyshevDist(Npc->GetTileCoord(), Npc->SpawnTile) > Npc->LeashRadius;
 
 	if (bTargetGone || bLeashed)
@@ -152,18 +168,18 @@ void URogueyNpcManager::TickReturning(ARogueyNpc* Npc, int32 TickIndex)
 
 FIntVector2 URogueyNpcManager::PickWanderTile(const ARogueyNpc* Npc) const
 {
-	static constexpr int32 WanderRange = 3;
+	static constexpr int32 WanderRange = 4;
 
 	float Angle  = FMath::RandRange(0.f, 2.f * PI);
-	float Radius = FMath::RandRange(0.f, (float)WanderRange);
+	float Radius = FMath::RandRange(1.f, (float)WanderRange);
 
-	FIntVector2 Current = Npc->GetTileCoord();
+	// Anchor to SpawnTile so NPCs stay near their home position rather than drifting.
 	FIntVector2 Candidate(
-		Current.X + FMath::RoundToInt(FMath::Cos(Angle) * Radius),
-		Current.Y + FMath::RoundToInt(FMath::Sin(Angle) * Radius)
+		Npc->SpawnTile.X + FMath::RoundToInt(FMath::Cos(Angle) * Radius),
+		Npc->SpawnTile.Y + FMath::RoundToInt(FMath::Sin(Angle) * Radius)
 	);
 
-	return GridManager->IsInBounds(Candidate) ? Candidate : Current;
+	return GridManager->IsInBounds(Candidate) ? Candidate : Npc->SpawnTile;
 }
 
 FIntVector2 URogueyNpcManager::PickFleeTile(const ARogueyNpc* Npc, FIntVector2 ThreatTile) const
@@ -203,7 +219,7 @@ ARogueyPawn* URogueyNpcManager::FindClosestPlayerInRadius(const ARogueyNpc* Npc,
 	for (TActorIterator<ARogueyCharacter> It(GetWorld()); It; ++It)
 	{
 		ARogueyCharacter* Player = *It;
-		if (!IsValid(Player) || Player->IsDead()) continue;
+		if (!ARogueyPawn::IsAlive(Player)) continue;
 
 		int32 Dist = ChebyshevDist(Npc->GetTileCoord(), Player->GetTileCoord());
 		if (Dist <= RadiusTiles && Dist < BestDist)
@@ -219,6 +235,38 @@ ARogueyPawn* URogueyNpcManager::FindClosestPlayerInRadius(const ARogueyNpc* Npc,
 int32 URogueyNpcManager::ChebyshevDist(FIntVector2 A, FIntVector2 B)
 {
 	return FMath::Max(FMath::Abs(A.X - B.X), FMath::Abs(A.Y - B.Y));
+}
+
+void URogueyNpcManager::TickBossCombat(ARogueyForestBoss* Boss, int32 TickIndex)
+{
+	// Refresh aggro target
+	ARogueyPawn* Target = Boss->AggroTarget.Get();
+	if (!ARogueyPawn::IsAlive(Target))
+	{
+		Target = FindClosestPlayerInRadius(Boss, 30);
+		if (Target) Boss->AggroTarget = Target;
+	}
+	if (!ARogueyPawn::IsAlive(Target)) return;
+
+	const bool bAdjacent      = URogueyActionManager::IsInAttackRange(
+		Boss->GetTileCoord(), Boss->TileExtent, Target->GetTileCoord(), Target->TileExtent, 1, false);
+	const bool bInRangedRange = URogueyActionManager::IsInAttackRange(
+		Boss->GetTileCoord(), Boss->TileExtent, Target->GetTileCoord(), Target->TileExtent, 8, false);
+
+	if (!bAdjacent && !bInRangedRange)
+	{
+		// Player too far — boss stands still and waits
+		ActionManager->ClearAction(Boss);
+		return;
+	}
+
+	// Switch between melee and ranged dynamically
+	Boss->AttackRange         = bAdjacent ? 1 : 8;
+	Boss->bAttackCardinalOnly = (Boss->AttackRange <= 1);
+
+	// SetAttackAction will find the target already in range and go straight to Attack (no movement)
+	if (!ActionManager->HasAction(Boss))
+		ActionManager->SetAttackAction(Boss, Target);
 }
 
 #if ENABLE_DRAW_DEBUG
@@ -273,6 +321,7 @@ void URogueyNpcManager::DrawNpcDebug(ARogueyNpc* Npc) const
 		case ENpcBehavior::Aggressive: BehaviorStr = TEXT("Aggressive"); break;
 		case ENpcBehavior::Defensive:  BehaviorStr = TEXT("Defensive");  break;
 		case ENpcBehavior::Passive:    BehaviorStr = TEXT("Passive");    break;
+		case ENpcBehavior::Friendly:   BehaviorStr = TEXT("Friendly");   break;
 	}
 
 	const TCHAR* StateStr  = TEXT("?");

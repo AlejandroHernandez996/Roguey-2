@@ -20,10 +20,23 @@ namespace RogueyActions
 
 	// NPC interaction
 	static const FName TalkTo = "Talk-to";
+	static const FName Trade  = "Trade";
+	static const FName Bank   = "Bank";
 
 	// World objects
-	static const FName Enter  = "Enter";
-	static const FName Gather = "Gather";
+	static const FName Enter    = "Enter";
+	static const FName Gather   = "Gather";
+	static const FName OpenBank = "Open";
+	static const FName Craft    = "Craft"; // crafting station (anvil, forge)
+
+	// Use item on another item or actor (distinct from inventory "Use" action)
+	static const FName UseOn = "UseOn";
+
+	// NPC offering (boss activation)
+	static const FName Offer = "Offer";
+
+	// Player-to-player
+	static const FName Follow = "Follow";
 
 	// Dev
 	static const FName Spawn = "Spawn";

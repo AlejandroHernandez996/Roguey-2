@@ -2,9 +2,9 @@
 
 ## Overview
 
-Each area is a separate `.umap` level. `ServerTravel` moves all connected players when a portal is entered. The game instance survives travel (carrying `URogueyRunState`); `AGameMode`, `APlayerController`, and `ARogueyPawn` are destroyed and recreated.
+Areas are **not** separate `.umap` levels. There is a single persistent level. When a portal is entered, `ARogueyGameMode::ResetArea` destroys all spawned actors and regenerates the area in-place. Players are teleported to the new start tiles. No `ServerTravel` — the game instance and all actors/controllers persist through area transitions.
 
-Area layout, NPC spawning, and object spawning are **data-driven and procedurally generated** at level load. No hand-placed actors are needed — everything comes from DataTable rows.
+Area layout, NPC spawning, and object spawning are **data-driven and procedurally generated** on each `ResetArea`. No hand-placed actors are needed — everything comes from DataTable rows.
 
 ---
 
@@ -17,15 +17,22 @@ One row per playable area. Row name = `AreaId` (e.g. `hub`, `forest_1`, `dungeon
 | Field | Purpose |
 |---|---|
 | `AreaName` | Human-readable display name |
-| `RoomType` | `Hub / Combat / Boss` — used by HUD |
-| `GenAlgorithm` | `BSP` (rooms + corridors) or `CellularAutomata` (organic caves/forests) |
+| `RoomType` | `Hub / Combat / Boss` — used by HUD room label |
+| `GenAlgorithm` | `BSP`, `CellularAutomata`, `OpenRoom`, `Village`, or `Forest` |
 | `GridWidth/Height` | Tile dimensions of the generated map |
 | `BspMinRoomSize/MaxRoomSize/MinRoomCount` | BSP tuning |
 | `CaFillRatio/CaIterations` | CA tuning (fill ratio 0–1, iterations 5 typical) |
+| `ForestDensity` | Forest CA initial blocked ratio (0.20 = 80% floor before smoothing) |
+| `ForestCaIterations` | Forest smoothing passes (fewer than cave = scattered clusters) |
+| `ForestNumTrails` | Winding trails carved entry→exit (Phase 2) |
+| `ForestNumClearings/RadiusMin/Max` | Circular open areas stamped over the canopy (Phase 2) |
+| `ForestNumPonds` | Number of water pond blobs. 0 = no water. Ponds are placed in the right 4/5 of the map. |
+| `ForestPondRadiusMin/Max` | Min/max radius (tiles) for each pond. Actual shape is wobbly-circular. |
+| `ForestNumRivers` | Number of top-to-bottom rivers. 0 = no rivers. Rivers avoid the entry zone (left 1/5). |
+| `ForestRiverWidth` | Half-width (tiles) of the river corridor stamp. |
 | `TilePalette` | `DungeonStone` (grey floor, charcoal walls) or `ForestGround` (earthy floor, dark-green non-walkable) |
-| `NextAreaId` | Row key of the destination area after clearing this one. Empty = end of run. |
+| `NextAreaId` | Row key of the destination area after clearing this one. Empty = end of run → triggers `TriggerVictory`. |
 | `bRequireClearForPortal` | Portal Enter action is hidden until all hostile NPCs are dead |
-| `bClearRunStateOnEnter` | Wipes `URogueyRunState` on enter — use for hub/game-over fresh starts |
 
 ### `DT_AreaNpcs` (`FRogueyAreaNpcRow`)
 
@@ -46,7 +53,8 @@ Same flat-pool pattern for world objects. Row name: `{areaId}_{objectTypeId}` (e
 | `AreaId` | Must match a row key in `DT_Areas` |
 | `ObjectTypeId` | Must match a row key in `DT_Objects` |
 | `MinCount/MaxCount` | Random count rolled per area load |
-| `bEdgePreferred` | Prefer tiles adjacent to walls (good for rocks/ores — not yet used in generator) |
+| `bEdgePreferred` | Prefer tiles adjacent to walls (rocks/ores) — wired in Phase 2 via `ObjectZone` |
+| `ObjectZone` | `EForestZoneType` — preferred spawn zone in Forest areas (`Any` = no restriction). Phase 2 wires zone-weighted placement. |
 
 All three tables are assigned in **Project Settings → Roguey → Data Tables**: `AreaTable`, `AreaNpcTable`, `AreaObjectTable`.
 
@@ -54,7 +62,7 @@ All three tables are assigned in **Project Settings → Roguey → Data Tables**
 
 ## Generation Pipeline
 
-`ARogueyGameMode::BeginPlay` drives the pipeline for the current level:
+`ARogueyGameMode::BeginPlay` and `ResetArea` both drive the same pipeline:
 
 ```
 1. GridManager->Init(GridWidth, GridHeight)       — allocate tile grid
@@ -63,40 +71,96 @@ All three tables are assigned in **Project Settings → Roguey → Data Tables**
    b. ApplyGridToManager                          — stamps walkable/blocked tiles
    c. Terrain->BuildFromGrid(GridManager, Palette) — builds mesh + height grid + replicates to clients
    d. Override PlayerStartTiles from result candidates
-   e. SpawnNpcs(AreaId)                           — reads DT_AreaNpcs, shuffles walkable tiles
-   f. SpawnObjects(AreaId)                        — reads DT_AreaObjects, NxM footprint check
+   e. SpawnNpcs(AreaId, NpcRand)                  — reads DT_AreaNpcs, shuffles walkable tiles
+   f. SpawnObjects(AreaId, ObjRand)               — reads DT_AreaObjects, NxM footprint check
    g. SpawnPortal(Row, ExitTile)                  — spawns ARogueyPortal at far end
 ```
 
 ### `URogueyAreaGenerator`
 
-Stateless, pure-function class. Two algorithms:
+Stateless, pure-function class. All algorithms output `FRogueyGeneratorResult`:
+- `Grid` — the walkable/blocked tile map
+- `PlayerStartCandidates` — walkable interior tiles in the left third of the map; used for player spawn
+- `ExitTile` — the walkable tile farthest from the start cluster; portal is placed here
+- `ZoneMap` — `TMap<FIntPoint, EForestZoneType>`, populated only by the Forest algorithm
 
 **BSP** — recursively splits the grid into `FBspNode` partitions, carves rooms inside each leaf, connects with L-shaped corridors. Produces a dungeon-style layout.
 
-**Cellular Automata** — seeds random fill, runs N iterations of the rule "become walkable if ≥ 5 of 8 neighbours walkable", keeps only the largest connected region. Produces organic cave/forest layouts.
+**Cellular Automata** — seeds random fill, runs N iterations of the rule "become walkable if ≥ 5 of 8 neighbours walkable", keeps only the largest connected region. Produces organic cave layouts.
 
-Both algorithms output `FRogueyGeneratorResult`:
-- `Grid` — the walkable/blocked tile map
-- `PlayerStartCandidates` — walkable interior tiles in the left third of the map, scored by walkable-neighbour count; used for player spawn
-- `ExitTile` — the walkable tile farthest from the start cluster; portal is placed here
+**Forest** (Phase 1) — inverted CA: starts mostly-Free (low `ForestDensity`) and smooths toward Blocked clusters, producing open canopy with scattered tree patches. Passes through `KeepLargestRegion` and `FindStartAndExit` like CA/BSP. Phase 2 adds trail carving, clearing stamps, and `ZoneMap` population. **Phase 3** stamps ponds and rivers using `ETileType::Water` tiles (impassable, rendered blue by terrain). Only Free tiles are converted — Blocked tree tiles create natural shorelines. The entry zone (left 1/5 of map) is protected from water so the player always has a walkable entry.
+
+**Water tile type** (`ETileType::Water`) — a fourth tile type alongside Free/Blocked/Wall. Non-walkable like Blocked, but distinguishable for visual rendering (terrain encodes it as RepTileType `3` → blue flat mesh). `KeepLargestRegion` treats Water as non-walkable and does not disturb it.
+
+**Fishing spot spawning** — `DT_AreaObjects` rows with `ObjectZone=Water` trigger a special path in `SpawnObjects`: instead of walkable tiles, the generator collects water-edge tiles (Water tiles that have ≥1 adjacent walkable land tile) and places the fishing spot there. The player paths to the adjacent land tile and gathers from range 1.
 
 ### `URogueyLevelGenerator`
 
 Owned by `ARogueyGameMode` (a `UObject`, not an actor). Thin orchestration layer:
 
 - **`ApplyGridToManager`** — iterates the generated grid, calls `GridManager->SetTileType` for each tile
-- **`SpawnNpcs`** — collects all walkable unoccupied tiles (excluding `PlayerStartTiles`), shuffles once, iterates matching `DT_AreaNpcs` rows, rolls random spawn counts, sets `Npc->NpcTypeId` after spawn
-- **`SpawnObjects`** — same shuffle-and-iterate pattern, but also performs an NxM footprint check before placing each object. Tiles consumed by a multi-tile object are reserved so subsequent objects can't overlap. Uses `SpawnActorDeferred` / `FinishSpawning` so `ObjectTypeId` is set before `BeginPlay` fires.
-- **`SpawnPortal`** — resolves destination level path from `GM->AreaLevelPaths`, spawns `ARogueyPortal` at `ExitTile`
+- **`SpawnNpcs(GM, AreaId, FRandomStream& Rand)`** — collects interior walkable tiles (all 4 cardinal neighbours walkable, falls back to any walkable if none), shuffles with `Rand`, iterates matching `DT_AreaNpcs` rows, rolls random spawn counts. Sets `Npc->NpcTypeId` after deferred spawn.
+- **`SpawnObjects(GM, AreaId, FRandomStream& Rand)`** — same shuffle-and-iterate pattern, performs NxM footprint check before placing. Tiles consumed by a multi-tile object are reserved. Uses `SpawnActorDeferred` / `FinishSpawning` so `ObjectTypeId` is set before `BeginPlay` fires.
+- **`SpawnPortal`** — looks up the next area's display name from `DT_Areas`, spawns `ARogueyPortal` at `ExitTile`, sets `NextAreaId` and `PortalName`
 
 ### `ARogueyGameMode` properties for generation
 
 | Property | Purpose |
 |---|---|
-| `AreaRowName` | Row key in `DT_Areas` for this level. Set on each level's `BP_RogueyGameMode` instance in editor. |
-| `AreaLevelPaths` | `TMap<FName, FString>` — maps area row keys to `.umap` paths (e.g. `"forest_1" → "/Game/Roguey/Levels/Lvl_Forest"`). Used by the portal to know where to `ServerTravel`. |
+| `AreaRowName` | Row key in `DT_Areas` for the starting area. Set on the level's `BP_RogueyGameMode` instance in editor. |
 | `NpcClass` | Blueprint subclass of `ARogueyNpc` to spawn (assign `BP_RogueyNpc`). |
+
+---
+
+## Seed System
+
+All procedural generation is driven by a deterministic seed for reproducible runs.
+
+### Where the seed lives
+
+`URogueyGameInstance::RunSeed` (`int32`) — persists for the entire run. Set to 0 between runs.
+
+| Method | Purpose |
+|---|---|
+| `SetRunSeed(int32)` | Called by GameMode after class select resolves the seed |
+| `GetRunSeed()` | Read back by ResetArea to derive per-area seeds |
+| `MakeStream(int32 SystemOffset)` | Returns `FRandomStream(RunSeed + SystemOffset)` — unified API for new seedable systems |
+
+### Per-area seeds
+
+`ARogueyGameMode::AreaIndex` increments every `ResetArea` call (starts at 0 for the first area). Area seed = `RunSeed + AreaIndex * 100`.
+
+This reserves 100 offset slots per area. Per-system streams inside `LevelGenerator->Generate` use:
+- Offset `+0` — layout (`URogueyAreaGenerator`, consumes Seed internally)
+- Offset `+1` — NPC placement (`NpcRand`)
+- Offset `+2` — Object placement (`ObjRand`)
+- Offsets `+3…+99` — reserved for future per-area systems
+
+### Host seed entry
+
+At the class-select screen, the host can type a numeric seed (up to 10 digits). Empty = random. The seed is sent in `Server_ConfirmClassSelection(ClassId, PlayerName, RunSeed)` and broadcast to all clients via `Client_SetRunSeed`. On game-over/victory, `AreaIndex` and `RunSeed` are reset to 0.
+
+---
+
+## Area Transition Flow
+
+```
+[Player]  right-click portal → Server_RequestActorAction(portal, "Enter")
+[Server]  ActionManager → ARogueyPortal::TryEnter
+[Server]  if bRequiresClearRoom and hostiles alive → return early
+[Server]  if bIsEndlessEntry → GM->BeginEndlessForest()
+[Server]  if NextAreaId set → GM->ResetArea(NextAreaId)
+[Server]  if NextAreaId empty → GM->TriggerVictory()
+
+ResetArea(NewAreaId):
+  1. AreaIndex++
+  2. Destroy all NPCs, objects, portals, loot drops in world
+  3. Derive AreaSeed = RunSeed + AreaIndex * 100
+  4. LevelGenerator->Generate(GM, Row, NewAreaId, AreaSeed)
+  5. Teleport all players to new PlayerStartTiles
+```
+
+No map load, no client reconnect. All actors/controllers persist.
 
 ---
 
@@ -106,78 +170,42 @@ Owned by `ARogueyGameMode` (a `UObject`, not an actor). Thin orchestration layer
 
 | Property | Purpose |
 |---|---|
-| `DestinationLevel` | Map path string passed to `ServerTravel` |
-| `PortalName` | Display name in context menu and on hover |
+| `NextAreaId` | Row key in `DT_Areas` for the next area. Empty = end of run. |
+| `PortalName` | Display name in context menu and on hover (set to destination area's `AreaName`) |
 | `bRequiresClearRoom` | If true, Enter is hidden until all hostile NPCs (TeamId ≠ 0) are dead |
+| `bIsEndlessEntry` | If true, entering calls `GameMode->BeginEndlessForest()` — starts the endless chunk-streamed forest run instead of transitioning to a fixed area |
 
-`TryEnter` flow:
-1. Check `bRequiresClearRoom` — if hostiles alive, return early
-2. Call `GM->SaveAllPlayersForTravel()` to snapshot all pawns
-3. Call `GetWorld()->ServerTravel(DestinationLevel)`
+### `TriggerVictory` / `TriggerGameOver` (on `ARogueyGameMode`)
 
-### `URogueyRunState`
-
-`UGameInstanceSubsystem` — persists across all `ServerTravel` calls.
-
-Stores per-player: `StatPage`, `Inventory`, `Equipment`, `CurrentHP`, `DialogueFlags`. Keyed by `PlayerState->GetPlayerName()` (stable in PIE; swap to UniqueId for shipping).
-
-| Method | Called by |
-|---|---|
-| `SavePlayer(Pawn, PC)` | `ARogueyGameMode::SaveAllPlayersForTravel` |
-| `RestorePlayer(Pawn, PC)` | `ARogueyGameMode::HandleStartingNewPlayer` |
-| `ClearAllSavedPlayers()` | Level generator when `bClearRunStateOnEnter` is true |
-
-`RestorePlayer` also calls `RecalcEquipmentBonuses()` so clients see restored gear.
-
----
-
-## ServerTravel Flow
-
-```
-[Player]  right-click portal → Server_RequestActorAction(portal, "Enter")
-[Server]  ActionManager → ARogueyPortal::TryEnter
-[Server]  SaveAllPlayersForTravel → URogueyRunState::SavePlayer for each PC
-[Server]  GetWorld()->ServerTravel(DestinationLevel)
-[Server]  Loads new map → GameMode::BeginPlay → LevelGenerator::Generate
-[Clients] ClientTravel → reconnect
-[Server]  HandleStartingNewPlayer fires for each PC
-            → SpawnAndPossessCharacter (scored best-tile from generator candidates)
-            → URogueyRunState::RestorePlayer (if saved data exists)
-```
-
-Non-seamless travel (required by `AGameModeBase`). All actors in the old world are destroyed.
+Both reset `AreaIndex = 0`, `PendingRunSeed = 0`, `bPendingSeedSet = false`, `GI->SetRunSeed(0)` before calling `ResetArea("hub")`. `TriggerGameOver` also resets each player's stats/inventory. After reset, each notifies all PlayerControllers via `Client_ShowVictory` / `Client_ShowGameOver`.
 
 ---
 
 ## Authoring a New Area
 
-1. Create a new `.umap` level.
-2. Place `BP_RogueyGameMode`, `BP_RogueyTerrain`, `BP_RogueyPlayerController`, `BP_RogueyHUD`.
-3. On the `BP_RogueyGameMode` instance:
-   - Set `AreaRowName` to the row key in `DT_Areas` (e.g. `dungeon_2`).
-   - Populate `AreaLevelPaths` with entries for all areas reachable from here.
-4. Add a row to `DT_Areas` for the new area. Set generation params, palette, `NextAreaId`.
-5. Add rows to `DT_AreaNpcs` and/or `DT_AreaObjects` for the area's spawnable content.
-6. Add the new level's path to the `AreaLevelPaths` map on every level that can travel to it.
+1. Add a row to `DT_Areas`. Set `AreaName`, `RoomType`, generation params, palette, `NextAreaId`.
+2. Add rows to `DT_AreaNpcs` and/or `DT_AreaObjects` for the area's spawnable content.
+3. Set `AreaRowName` on the GameMode instance to the first area's row key (only needed once — subsequent areas are reached via `ResetArea`).
 
 No portals need to be placed by hand — `URogueyLevelGenerator::SpawnPortal` places one automatically at the farthest walkable tile.
 
 ---
 
-## Current Area Layout
+## Current Area Progression
 
-| Level | AreaRowName | TilePalette | NextAreaId | bClearRunStateOnEnter |
+| AreaId | RoomType | TilePalette | NextAreaId | Notes |
 |---|---|---|---|---|
-| `Lvl_Hub` | `hub` | ForestGround | `forest_1` | true |
-| `Lvl_Forest` | `forest_1` | ForestGround | `dungeon_1` | false |
-| `Lvl_Dungeon` | `dungeon_1` | DungeonStone | `boss_1` | false |
-| `Lvl_Boss` | `boss_1` | DungeonStone | *(empty)* | false |
+| `hub` | Hub | ForestGround | `forest_1` | Village gen, NPCs, bank |
+| `forest_1` | Combat | ForestGround | `forest_boss_1` | Forest CA, 64×64, trees/rocks |
+| `forest_boss_1` | Boss | ForestGround | `hub` | BSP or OpenRoom, `bRequireClearForPortal=true` |
+
+Completing `forest_boss_1` resets back to hub (player keeps inventory). No victory screen — continuous loop.
+
+`dungeon_1` and `boss_1` rows exist in `DT_Areas` but are not wired into the active progression.
 
 ---
 
 ## Known Limitations
 
-- Player key uses `PlayerState->GetPlayerName()` — may collide in shipping with duplicate names. Swap to `GetUniqueId().ToString()` when adding real online sessions.
 - `GridMinX/Y` hardcoded to 0 on clients (see Movement.md). If a room's grid starts at a non-zero tile, client terrain Z will be wrong — replicate `GridMinX/Y` when that case arises.
-- `ARogueyRoomDirector` still exists in code as a legacy hand-authored path but is not used by any current level. It can be removed once all levels migrate to the data-driven generator.
-- `bEdgePreferred` on `FRogueyAreaObjectRow` is parsed but not yet wired into the generator's tile selection logic.
+- `bEdgePreferred` and `ObjectZone` on `FRogueyAreaObjectRow` are parsed but not yet wired into the generator's tile selection logic — scheduled for Phase 2 of the Forest implementation.

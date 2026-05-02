@@ -15,6 +15,16 @@ class ROGUEY_API URogueyGridManager : public UObject, public IRogueyTickable
 public:
 	void Init(int32 Width, int32 Height);
 
+	// Chunk streaming — forest mode only. Chunk (CX,CY) covers world tiles (CX*32..CX*32+31, CY*32..CY*32+31).
+	// ChunkGrid tiles are in local [0..31] space; LoadChunkTiles offsets them to world space on insert.
+	static constexpr int32 ChunkSize = 32;
+	void LoadChunkTiles(FIntPoint ChunkCoord, const FRogueyGrid& ChunkGrid);
+	void UnloadChunkTiles(FIntPoint ChunkCoord);
+
+	// Wipes all tile data without reinitialising. Used before switching to forest mode
+	// so hub tiles don't persist alongside dynamically-loaded chunk tiles.
+	void ClearGrid() { Grid.Tiles.Empty(); }
+
 	virtual void RogueyTick(int32 TickIndex) override;
 
 	// Actor registration
@@ -35,6 +45,10 @@ public:
 	bool CanActorMoveTo(const AActor* Actor, FIntVector2 NewOrigin) const;
 	bool IsAdjacent(FIntVector2 A, FIntVector2 B) const;
 	bool IsInBounds(FIntVector2 Coord) const;
+	// Returns false if any tile along the straight path from From to To is a solid LoS blocker.
+	// Skips the From tile and the To tile (attacker/target positions themselves are not obstacles).
+	bool HasLineOfSight(FIntVector2 From, FIntVector2 To) const;
+	ETileType GetTileType(FIntVector2 Coord) const;
 
 	// Coordinate conversion
 	FVector TileToWorld(FIntVector2 Coord) const;
@@ -44,6 +58,7 @@ public:
 
 	const FRogueyGrid& GetGrid() const { return Grid; }
 	void SetTileType(FIntVector2 Coord, ETileType Type) { Grid.SetTileType(Coord, Type); }
+	void AddBlockedEdge(FIntVector2 Coord, uint8 EdgeBits) { Grid.AddBlockedEdge(Coord, EdgeBits); }
 
 private:
 	FRogueyGrid Grid;

@@ -10,6 +10,7 @@ class URogueyMovementManager;
 class URogueyActionManager;
 class ARogueyPawn;
 class ARogueyNpc;
+class ARogueyForestBoss;
 
 UCLASS()
 class ROGUEY_API URogueyNpcManager : public UObject, public IRogueyTickable
@@ -21,11 +22,15 @@ public:
 
 	virtual void RogueyTick(int32 TickIndex) override;
 
+	// Toggled by the dev panel Settings tab — default off
+	bool bNpcDebugEnabled = false;
+
 private:
 	void TickNpc(ARogueyNpc* Npc, int32 TickIndex);
 	void TickIdle(ARogueyNpc* Npc, int32 TickIndex);
 	void TickCombat(ARogueyNpc* Npc, int32 TickIndex);
 	void TickReturning(ARogueyNpc* Npc, int32 TickIndex);
+	void TickBossCombat(ARogueyForestBoss* Boss, int32 TickIndex);
 
 	FIntVector2    PickWanderTile(const ARogueyNpc* Npc) const;
 	FIntVector2    PickFleeTile(const ARogueyNpc* Npc, FIntVector2 ThreatTile) const;

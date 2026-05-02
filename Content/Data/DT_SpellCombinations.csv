@@ -1,0 +1,4 @@
+---,SpellId,TargetItemId,RuneCost,bConsumesItem,SpawnObjectTypeId,OutputItemId,XpSkill,XpAmount,Message
+fire_strike_oak_logs,spell_fire_strike,oak_logs,1,true,fire_pit,,Magic,40,You light a fire.
+fire_strike_willow_logs,spell_fire_strike,willow_logs,1,true,fire_pit,,Magic,60,You light a fire.
+fire_strike_yew_logs,spell_fire_strike,yew_logs,1,true,fire_pit,,Magic,90,You light a fire.

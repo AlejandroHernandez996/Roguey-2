@@ -6,6 +6,7 @@
 #include "RogueyPortal.generated.h"
 
 class ARogueyPawn;
+class UStaticMeshComponent;
 
 UCLASS()
 class ROGUEY_API ARogueyPortal : public AActor, public IRogueyInteractable
@@ -15,7 +16,7 @@ class ROGUEY_API ARogueyPortal : public AActor, public IRogueyInteractable
 public:
 	ARogueyPortal();
 
-	// Row key in DT_Areas for the next area. Empty = end of run (portal does nothing).
+	// Row key in DT_Areas for the next area. Empty = end of run (triggers TriggerVictory).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
 	FName NextAreaId;
 
@@ -30,6 +31,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
 	bool bRequiresClearRoom = false;
 
+	// If true, entering this portal starts the endless forest run instead of TriggerVictory.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
+	bool bIsEndlessEntry = false;
+
 	// Called by ActionManager when the player chooses Enter. Server-side only.
 	void TryEnter(ARogueyPawn* Pawn);
 
@@ -40,4 +45,7 @@ public:
 
 private:
 	bool IsRoomStillHostile() const;
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> MeshComp;
 };

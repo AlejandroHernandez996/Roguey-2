@@ -33,6 +33,11 @@ struct ROGUEY_API FRogueyItemRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	int32 Value = 0;
 
+	// ── Weapon speed ─────────────────────────────────────────────────────────
+	// Attack cooldown in game ticks. 0 = use the pawn default (4 ticks).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	int32 AttackSpeedTicks = 0;
+
 	// ── Equipment bonuses ──────────────────────────────────────────────────────
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
 	int32 MeleeAttackBonus   = 0;
@@ -44,10 +49,41 @@ struct ROGUEY_API FRogueyItemRow : public FTableRowBase
 	int32 MeleeDefenceBonus  = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
-	int32 RangedAttackBonus  = 0;
+	int32 RangedAttackBonus   = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
-	int32 MagicAttackBonus   = 0;
+	int32 RangedStrengthBonus = 0;   // ammo rows or thrown weapons
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
+	int32 RangedDefenceBonus  = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
+	int32 MagicAttackBonus    = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
+	int32 MagicStrengthBonus  = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
+	int32 MagicDefenceBonus   = 0;
+
+	// ── Weapon style ──────────────────────────────────────────────────────────
+	// True for staves and magic weapons. Uses Magic stat instead of Ranged.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	bool bMagicWeapon = false;
+
+	// ── Ranged weapon ──────────────────────────────────────────────────────────
+	// Range in tiles. 1 = melee (default). > 1 = ranged weapon or thrown.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	int32 AttackRangeTiles = 1;
+
+	// Ticks for projectile to travel. 0 = melee/instant. >= 1 = projectile weapon.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	int32 ProjectileSpeedTicks = 0;
+
+	// On weapons: ammo type required (empty = thrown weapon or melee).
+	// On ammo: compatible weapon tag.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	FName AmmoCompatTag;
 
 	// ── Food ──────────────────────────────────────────────────────────────────
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Food")
@@ -59,7 +95,7 @@ struct ROGUEY_API FRogueyItemRow : public FTableRowBase
 	int32 MaxDoses = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
-	ERogueyStatType StatBuffType = ERogueyStatType::Melee;
+	ERogueyStatType StatBuffType = ERogueyStatType::Strength;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Potion")
 	int32 StatBuffAmount = 0;

@@ -28,7 +28,14 @@
       "Bash(\"C:\\\\Program Files\\\\Epic Games\\\\UE_5.5\\\\Engine\\\\Build\\\\BatchFiles\\\\Build.bat\" Roguey Win64 Development -Project=\"C:\\\\Users\\\\aleja\\\\gamedev\\\\Roguey\\\\Roguey.uproject\")",
       "Read(//c/Program Files/Epic Games//**)",
       "Read(//c/Program Files/Epic Games/**)",
-      "Bash(\"C:/Program Files/Epic Games/UE_5.5/Engine/Build/BatchFiles/Build.bat\" RogueyEditor Win64 Development -Project=\"C:/Users/aleja/gamedev/Roguey/Roguey.uproject\")"
+      "Bash(\"C:/Program Files/Epic Games/UE_5.5/Engine/Build/BatchFiles/Build.bat\" RogueyEditor Win64 Development -Project=\"C:/Users/aleja/gamedev/Roguey/Roguey.uproject\")",
+      "Bash(\"C:\\\\Program Files\\\\Epic Games\\\\UE_5.5\\\\Engine\\\\Build\\\\BatchFiles\\\\Build.bat\" RogueyEditor Win64 Development -project=\"C:\\\\Users\\\\aleja\\\\gamedev\\\\Roguey\\\\Roguey.uproject\" -WaitMutex)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Epic Games\\\\UE_5.5\\\\Engine\\\\Build\\\\BatchFiles\\\\Build.bat\" Roguey Win64 Development -Project=\"C:\\\\Users\\\\aleja\\\\gamedev\\\\Roguey\\\\Roguey.uproject\" 2>&1 | Select-Object -Last 40)",
+      "Bash(awk -F: '$2 >= 930 && $2 <= 1100 {print}')",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\aleja\\\\gamedev\\\\Roguey\\\\Source\\\\Roguey\" -Filter \"*.h\" -File)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\aleja\\\\gamedev\\\\Roguey\" -Recurse -Filter \"RogueyStatType.h\")",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }

@@ -1,0 +1,4 @@
+---,ClassName,Description,PrimaryStatType,PrimaryStatStartLevel,StartingItems
+melee,Melee,Sword and shield. Tough and reliable.,Strength,5,"((ItemId=bronze_sword,Quantity=1),(ItemId=bronze_full_helm,Quantity=1),(ItemId=bronze_chainbody,Quantity=1),(ItemId=bronze_platelegs,Quantity=1),(ItemId=wooden_shield,Quantity=1),(ItemId=bronze_pickaxe,Quantity=1),(ItemId=hammer,Quantity=1),(ItemId=coins,Quantity=500))"
+ranged,Ranged,Strike from afar before they reach you.,Dexterity,5,"((ItemId=shortbow,Quantity=1),(ItemId=bronze_arrows,Quantity=30),(ItemId=knife,Quantity=1),(ItemId=bronze_axe,Quantity=1),(ItemId=coins,Quantity=500))"
+magic,Magic,Command arcane forces. Staff and runes included.,Magic,5,"((ItemId=magic_staff,Quantity=1),(ItemId=rune_air,Quantity=50),(ItemId=rune_water,Quantity=30),(ItemId=shrimp,Quantity=5),(ItemId=coins,Quantity=500))"

@@ -56,6 +56,23 @@ Multi-tile actors never move diagonally — sweeping a footprint through a corne
 
 `IsAdjacent(A, B)` — Chebyshev check (`|dx| ≤ 1 && |dy| ≤ 1`), meaning it returns true for diagonal neighbours too. Used for attack-range and talk-range testing, **not** for movement (movement is always cardinal). Do not confuse with walkability checks which are 4-directional only.
 
+## Line of Sight
+
+```cpp
+bool HasLineOfSight(FIntVector2 From, FIntVector2 To) const;
+```
+
+Returns `false` if any intermediate tile along the straight Bresenham line from `From` to `To` is a solid LoS blocker. The `From` and `To` tiles themselves are not tested (attacker and target positions are never obstacles).
+
+A tile blocks LoS if any of the following are true:
+- `!IsWalkable(Coord)` — Blocked or Water tile type
+- `IsOccupiedByBlocker(Coord)` — a world object or pawn with `bBlocksMovement=true`
+- `TileType == ETileType::Wall` — building wall tile (walkable but impassable)
+
+**When it is used:** `URogueyActionManager` calls it in `TickAttackMove` and `TickAttack` for attackers with `AttackRange > 1` (ranged and magic). Melee (range=1) skips the check — the gap geometry already ensures there are no intermediate tiles between adjacent combatants.
+
+If in range but LoS is blocked, the attacker re-paths to find a position with a clear angle rather than firing through the obstacle.
+
 ## Terrain vs. Grid
 
 `URogueyGridManager` tracks tile **type and occupancy** only. Terrain **height** is separate — `ARogueyTerrain` owns `HeightGrid` and provides `GetTileHeight()`. The grid manager does not know about Z at all.
@@ -63,3 +80,27 @@ Multi-tile actors never move diagonally — sweeping a footprint through a corne
 ## Grid Is Not Replicated
 
 `FRogueyGrid` has no replicated properties. Tile type changes are server-authoritative and clients are never informed (they don't need to be for current gameplay). If a client-visible tile-state feature is added (e.g., highlighted walkable tiles), implement delta replication via `AGameState`.
+
+## Chunk API (Endless Forest)
+
+Three methods support dynamic tile loading/unloading for the chunk-streamed forest:
+
+```cpp
+// Add all 32×32 tiles for a chunk. ChunkGrid is the FRogueyGrid produced by
+// URogueyAreaGenerator::ForestChunk(). Tile coordinates are offset to world space:
+// tile (lx, ly) in a chunk at (CX, CY) maps to world tile (CX*32+lx, CY*32+ly).
+void LoadChunkTiles(FIntPoint ChunkCoord, const FRogueyGrid& ChunkGrid);
+
+// Remove all 32×32 tiles for this chunk from the sparse TMap.
+void UnloadChunkTiles(FIntPoint ChunkCoord);
+
+// Bulk-wipe all tiles without reinitialising dimensions. Used by BeginEndlessForest
+// to clear hub tiles before the forest run starts (avoids hub/forest tile overlap).
+void ClearGrid();
+
+static constexpr int32 ChunkSize = 32;  // tiles per chunk edge
+```
+
+`Init(W, H)` is still called for hub/fixed areas. These methods are only used in forest mode.
+
+`FRogueyGrid` is a `TMap<FIntVector2, FRogueyTile>` — `IsInBounds` is `Tiles.Contains(key)`. Adding/removing tiles at arbitrary coordinates requires no structural change.

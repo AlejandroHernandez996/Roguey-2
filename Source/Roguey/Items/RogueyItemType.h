@@ -23,4 +23,5 @@ enum class ERogueyItemType : uint8
 	Potion,      // stat boost — no attack delay, uses Potion slot; Quantity = current doses
 	QuestItem,   // untradable, no equip/consume action
 	Usable,      // items with future use-on mechanics (e.g. logs)
+	Rune,        // magic rune — stackable, consumed on spell cast; not equippable
 };

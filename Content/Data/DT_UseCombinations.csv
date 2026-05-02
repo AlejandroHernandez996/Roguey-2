@@ -1,0 +1,4 @@
+---,ItemAId,TargetItemId,TargetNpcTypeId,TargetObjectTypeId,bConsumeA,bConsumeB,ResultItems,RequiredSkill,RequiredLevel,XpSkill,XpAmount,SkillFailMessage,ProcessingTicks,DialogueTriggerNodeId
+raw_shrimp_fire_pit,raw_shrimp,,,fire_pit,true,false,"((ResultItemId=shrimp,Quantity=1))",Cooking,1,Cooking,30,,3,
+raw_anchovies_fire_pit,raw_anchovies,,,fire_pit,true,false,"((ResultItemId=anchovies,Quantity=1))",Cooking,1,Cooking,30,,3,
+raw_sardine_fire_pit,raw_sardine,,,fire_pit,true,false,"((ResultItemId=sardine,Quantity=1))",Cooking,1,Cooking,40,,3,

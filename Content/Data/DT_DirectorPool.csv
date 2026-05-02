@@ -1,0 +1,8 @@
+---,NpcTypeId,MinThreatTier,MaxThreatTier,Weight,DirectorCost
+pool_rat,rat,0,4,20,5
+pool_goblin,goblin,0,4,40,8
+pool_wolf,wolf,0,3,30,6
+pool_skeleton,skeleton,1,4,25,15
+pool_dark_ranger,dark_ranger,2,4,20,22
+pool_moss_giant,moss_giant,3,4,15,28
+pool_forest_troll,forest_troll,3,4,12,40

@@ -19,7 +19,9 @@ public:
 
 private:
 	void ApplyGridToManager(ARogueyGameMode* GM, const FRogueyGrid& Grid, int32 Width, int32 Height);
-	void SpawnNpcs(ARogueyGameMode* GM, FName AreaId);
-	void SpawnObjects(ARogueyGameMode* GM, FName AreaId);
+	void SpawnNpcs(ARogueyGameMode* GM, FName AreaId, FRandomStream& Rand);
+	void SpawnObjects(ARogueyGameMode* GM, FName AreaId, FRandomStream& Rand);
+	void SpawnVillageNpcsAndObjects(ARogueyGameMode* GM, FName AreaId,
+		const TArray<FVillageBuilding>& Buildings, FRandomStream& NpcRand, FRandomStream& ObjRand);
 	void SpawnPortal(ARogueyGameMode* GM, const FRogueyAreaRow& Row, FIntVector2 ExitTile);
 };

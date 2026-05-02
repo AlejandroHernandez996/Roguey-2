@@ -37,14 +37,15 @@ Any `UObject` (or `AActor`) that needs gameplay-tick access implements this inte
 
 ## Registered Tickables and Order
 
-Managers are created and registered in `ARogueyGameMode::InitGame` (before BeginPlay, before actors spawn). Tick order matters:
+Managers are created and registered in `ARogueyGameMode::InitGame` (before BeginPlay, before actors spawn). Registration order = tick order:
 
 1. **URogueyGridManager** — processes any pending tile-type changes
 2. **URogueyMovementManager** — resolves queued moves, calls `CommitMove`
-3. **URogueyActionManager** — dispatches queued actions (attack, interact)
-4. **URogueyNpcManager** — AI decisions (aggro, wander, leash, return)
-5. **URogueyCombatManager** — stateless; called by ActionManager, not ticked directly
-6. **URogueyDeathManager** — removes dead pawns after all other managers have run
+3. **URogueyActionManager** — dispatches queued actions (consume, attack, gather, bank, etc.)
+4. **URogueyCombatManager** — resolves pending projectiles (`PendingProjectiles` state), applies deferred hits
+5. **URogueyNpcManager** — AI decisions (aggro, wander, leash, return)
+6. **URogueyDeathManager** — removes dead pawns after all other managers have run; spawns loot drops
+7. **URogueyChunkManager** — streams 32×32 forest chunks around players (no-op when forest run is inactive)
 
 ## Hard Rules
 

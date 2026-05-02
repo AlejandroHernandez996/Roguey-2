@@ -1,6 +1,7 @@
 #include "RogueyPortal.h"
 
 #include "EngineUtils.h"
+#include "Components/StaticMeshComponent.h"
 #include "Roguey/Core/RogueyActionNames.h"
 #include "Roguey/Core/RogueyPawn.h"
 #include "Roguey/Npcs/RogueyNpc.h"
@@ -9,14 +10,38 @@
 ARogueyPortal::ARogueyPortal()
 {
 	bReplicates = true;
+
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+
+	MeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	MeshComp->SetupAttachment(RootComponent);
+	MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	MeshComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MeshComp->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneMesh(TEXT("/Engine/BasicShapes/Plane.Plane"));
+	if (PlaneMesh.Succeeded())
+	{
+		MeshComp->SetStaticMesh(PlaneMesh.Object);
+		MeshComp->SetRelativeScale3D(FVector(1.2f, 1.2f, 0.1f));
+		// Lift slightly so the flat plane sits on top of the terrain surface rather than half-embedded.
+		MeshComp->SetRelativeLocation(FVector(0.f, 0.f, 2.f));
+	}
 }
 
 void ARogueyPortal::TryEnter(ARogueyPawn* Pawn)
 {
-	if (!HasAuthority() || NextAreaId.IsNone()) return;
+	if (!HasAuthority()) return;
 	if (bRequiresClearRoom && IsRoomStillHostile()) return;
 
-	if (ARogueyGameMode* GM = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode()))
+	ARogueyGameMode* GM = Cast<ARogueyGameMode>(GetWorld()->GetAuthGameMode());
+	if (!GM) return;
+
+	if (bIsEndlessEntry)
+		GM->BeginEndlessForest();
+	else if (NextAreaId.IsNone())
+		GM->TriggerVictory();
+	else
 		GM->ResetArea(NextAreaId);
 }
 

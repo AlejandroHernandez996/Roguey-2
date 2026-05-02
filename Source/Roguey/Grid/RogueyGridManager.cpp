@@ -13,6 +13,34 @@ void URogueyGridManager::Init(int32 Width, int32 Height)
 	Grid.Init(Width, Height);
 }
 
+void URogueyGridManager::LoadChunkTiles(FIntPoint ChunkCoord, const FRogueyGrid& ChunkGrid)
+{
+	const int32 OffX = ChunkCoord.X * ChunkSize;
+	const int32 OffY = ChunkCoord.Y * ChunkSize;
+
+	for (int32 lx = 0; lx < ChunkSize; lx++)
+	{
+		for (int32 ly = 0; ly < ChunkSize; ly++)
+		{
+			const FIntVector2 WorldTile(OffX + lx, OffY + ly);
+			FRogueyTile NewTile;
+			if (const FRogueyTile* Src = ChunkGrid.Tiles.Find(FIntVector2(lx, ly)))
+				NewTile = *Src;
+			Grid.Tiles.Add(WorldTile, NewTile);
+		}
+	}
+}
+
+void URogueyGridManager::UnloadChunkTiles(FIntPoint ChunkCoord)
+{
+	const int32 OffX = ChunkCoord.X * ChunkSize;
+	const int32 OffY = ChunkCoord.Y * ChunkSize;
+
+	for (int32 lx = 0; lx < ChunkSize; lx++)
+		for (int32 ly = 0; ly < ChunkSize; ly++)
+			Grid.Tiles.Remove(FIntVector2(OffX + lx, OffY + ly));
+}
+
 void URogueyGridManager::RogueyTick(int32 TickIndex)
 {
 	// Movement and pathfinding will be processed here
@@ -66,11 +94,10 @@ void URogueyGridManager::MoveActor(AActor* Actor, FIntVector2 NewCoord)
 
 FIntVector2 URogueyGridManager::GetActorTile(const AActor* Actor) const
 {
-	if (const FIntVector2* Coord = ActorLocations.Find(Actor))
-	{
+	// TObjectPtr key requires an explicit TObjectPtr for correct hash lookup in editor builds.
+	if (const FIntVector2* Coord = ActorLocations.Find(TObjectPtr<AActor>(const_cast<AActor*>(Actor))))
 		return *Coord;
-	}
-	return FIntVector2(-1, -1);
+	return FIntVector2(INT32_MIN, INT32_MIN);
 }
 
 AActor* URogueyGridManager::GetActorAtTile(FIntVector2 Coord) const
@@ -82,7 +109,7 @@ AActor* URogueyGridManager::GetActorAtTile(FIntVector2 Coord) const
 
 bool URogueyGridManager::IsActorRegistered(const AActor* Actor) const
 {
-	return ActorLocations.Contains(Actor);
+	return ActorLocations.Contains(TObjectPtr<AActor>(const_cast<AActor*>(Actor)));
 }
 
 bool URogueyGridManager::IsWalkable(FIntVector2 Coord) const
@@ -164,6 +191,44 @@ bool URogueyGridManager::CanActorMoveTo(const AActor* Actor, FIntVector2 NewOrig
 bool URogueyGridManager::IsAdjacent(FIntVector2 A, FIntVector2 B) const
 {
 	return FMath::Abs(A.X - B.X) <= 1 && FMath::Abs(A.Y - B.Y) <= 1 && A != B;
+}
+
+ETileType URogueyGridManager::GetTileType(FIntVector2 Coord) const
+{
+	if (const FRogueyTile* T = Grid.Tiles.Find(Coord))
+		return T->TileType;
+	return ETileType::Free;
+}
+
+bool URogueyGridManager::HasLineOfSight(FIntVector2 From, FIntVector2 To) const
+{
+	if (From == To) return true;
+
+	int32 X0 = From.X, Y0 = From.Y;
+	const int32 X1  = To.X,  Y1  = To.Y;
+	const int32 DX  = FMath::Abs(X1 - X0);
+	const int32 DY  = FMath::Abs(Y1 - Y0);
+	const int32 SX  = (X0 < X1) ? 1 : -1;
+	const int32 SY  = (Y0 < Y1) ? 1 : -1;
+	int32 Err = DX - DY;
+
+	// Walk from From toward To via Bresenham's, checking each intermediate tile.
+	// The From tile (attacker) and To tile (target) are not tested.
+	while (X0 != X1 || Y0 != Y1)
+	{
+		const int32 E2 = 2 * Err;
+		if (E2 > -DY) { Err -= DY; X0 += SX; }
+		if (E2 <  DX) { Err += DX; Y0 += SY; }
+
+		if (X0 == X1 && Y0 == Y1) return true; // arrived at target — clear
+
+		const FIntVector2 Cur(X0, Y0);
+		if (!Grid.IsWalkable(Cur))                        return false; // Blocked/Water tile
+		if (IsOccupiedByBlocker(Cur))                     return false; // solid world object or pawn
+		if (GetTileType(Cur) == ETileType::Wall)           return false; // building wall tile
+	}
+
+	return true;
 }
 
 bool URogueyGridManager::IsInBounds(FIntVector2 Coord) const

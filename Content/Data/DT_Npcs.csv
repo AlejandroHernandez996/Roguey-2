@@ -1,6 +1,15 @@
----,NpcName,ExamineText,MaxHP,MeleeLevel,DefenceLevel,MeleeAttackBonus,MeleeStrengthBonus,MeleeDefenceBonus,Behavior,AggroRadius,LeashRadius,TileExtentX,TileExtentY,MinLootRolls,MaxLootRolls,DialogueStartNodeId
-goblin,Goblin,It's a goblin.,5,1,1,0,0,0,Defensive,4,10,1,1,1,2,
-skeleton,Skeleton,Animated bones.,20,10,5,0,5,0,Aggressive,6,12,1,1,1,3,
-rat,Rat,A giant rat.,3,1,1,0,0,0,Passive,3,8,1,1,1,1,
-guide,Guide,The dungeon guide. He has seen many adventurers pass through.,10,1,1,0,0,0,Friendly,0,0,1,1,0,0,guide_intro_1
-dungeon_lord,Dungeon Lord,A hulking guardian of the dungeon depths.,150,35,30,25,30,20,Aggressive,8,15,2,2,3,5,
+---,NpcName,ExamineText,MaxHP,MeleeLevel,DefenceLevel,RangedLevel,MagicLevel,MeleeAttackBonus,MeleeStrengthBonus,MeleeDefenceBonus,RangedAttackBonus,RangedStrengthBonus,MagicAttackBonus,MagicStrengthBonus,MagicDefenceBonus,DefenderStyle,AttackRangeTiles,ProjectileSpeedTicks,Behavior,AggroRadius,LeashRadius,TileExtentX,TileExtentY,MinLootRolls,MaxLootRolls,DialogueStartNodeId,WeaknessAir,WeaknessWater,WeaknessEarth,WeaknessFire,NpcActorClass
+goblin,Goblin,It's a goblin.,5,1,1,1,1,0,0,0,0,0,0,0,0,Melee,1,0,Defensive,4,10,1,1,1,2,,1.0,1.0,1.0,1.0,
+skeleton,Skeleton,Animated bones.,20,10,5,1,1,0,5,0,0,0,0,0,0,Melee,1,0,Aggressive,6,12,1,1,1,3,,1.0,1.0,1.0,1.5,
+rat,Rat,A giant rat.,3,1,1,1,1,0,0,0,0,0,0,0,0,Melee,1,0,Passive,3,8,1,1,1,1,,1.0,1.0,1.0,1.0,
+forest_troll,Forest Troll,A large and aggressive forest troll.,80,20,12,1,1,10,18,8,0,0,0,0,0,Melee,1,0,Aggressive,6,15,2,2,2,4,,1.0,1.0,1.0,1.0,
+guide,Guide,The dungeon guide. He has seen many adventurers pass through.,10,1,1,1,1,0,0,0,0,0,0,0,0,Melee,1,0,Friendly,0,0,1,1,0,0,guide_intro_1,1.0,1.0,1.0,1.0,
+dungeon_lord,Dungeon Lord,A hulking guardian of the dungeon depths.,150,35,30,1,1,25,30,20,0,0,0,0,0,Melee,1,0,Aggressive,8,15,2,2,3,5,,1.0,1.5,1.0,0.5,
+banker,Banker,A friendly banker who manages the town vault.,10,1,1,1,1,0,0,0,0,0,0,0,0,Melee,1,0,Friendly,0,0,1,1,0,0,banker_intro_1,1.0,1.0,1.0,1.0,
+innkeeper,Innkeeper,The innkeeper of the hub town. She knows all the local gossip.,10,1,1,1,1,0,0,0,0,0,0,0,0,Melee,1,0,Friendly,0,0,1,1,0,0,innkeeper_intro_1,1.0,1.0,1.0,1.0,
+guard,Town Guard,A steadfast guard protecting the hub town.,20,5,5,1,1,0,0,0,0,0,0,0,0,Melee,1,0,Friendly,0,0,1,1,0,0,guard_intro_1,1.0,1.0,1.0,1.0,
+forest_boss,Ancient Forest Guardian,An ancient spirit of the forest. Offer it 10 oak logs to awaken it.,300,40,35,30,1,30,35,25,35,30,0,0,0,Ranged,8,2,Aggressive,10,20,4,4,4,7,,1.0,1.0,1.5,0.5,/Script/Roguey.RogueyForestBoss
+wolf,Wolf,A hungry wolf hunting in the forest.,8,5,3,1,1,0,5,2,0,0,0,0,0,Melee,1,0,Aggressive,7,14,1,1,1,2,,1.0,1.0,1.0,1.0,
+dark_ranger,Dark Ranger,A corrupted ranger who patrols the deep forest.,15,3,5,15,1,0,0,3,10,8,0,0,0,Ranged,5,2,Aggressive,8,16,1,1,1,3,,1.5,1.0,1.0,1.0,
+moss_giant,Moss Giant,A hulking creature grown from the ancient forest floor.,50,16,10,1,1,5,12,8,0,0,0,0,0,Melee,1,0,Aggressive,6,14,2,2,2,4,,1.0,1.0,1.0,1.5,
+smith,Blacksmith,The village blacksmith. He can smith items for a price — or teach you how.,10,1,1,1,1,0,0,0,0,0,0,0,0,Melee,1,0,Friendly,0,0,1,1,0,0,smith_intro_1,1.0,1.0,1.0,1.0,

@@ -1,10 +1,43 @@
----,ObjectName,ObjectClass,ExamineText,TileWidth,TileHeight,bBlocksMovement,RequiredToolItemId,Skill,RequiredLevel,GatherTicks,XpPerAction,LootTableId
-oak_tree,Oak tree,,A sturdy oak tree.,1,1,true,bronze_axe,Woodcutting,1,4,37,oak_tree
-willow_tree,Willow tree,,Its branches droop gently.,1,1,true,bronze_axe,Woodcutting,30,4,67,willow_tree
-yew_tree,Yew tree,,Ancient and gnarled.,1,1,true,rune_axe,Woodcutting,60,4,175,yew_tree
-dead_tree,Dead tree,,A dried-out dead tree. Good for nothing.,1,1,true,,Woodcutting,1,4,0,
-large_rock,Large rock,,An immovable grey rock.,2,2,true,,Mining,1,0,0,
-copper_rock,Copper rock,,A vein of copper ore.,1,1,true,bronze_pickaxe,Mining,1,3,17,copper_rock
-tin_rock,Tin rock,,A vein of tin ore.,1,1,true,bronze_pickaxe,Mining,1,3,17,tin_rock
-iron_rock,Iron rock,,A vein of iron ore.,1,1,true,iron_pickaxe,Mining,15,3,35,iron_rock
-coal_rock,Coal rock,,A seam of coal.,1,1,true,iron_pickaxe,Mining,30,3,50,coal_rock
+---,ObjectName,ObjectClass,ExamineText,TileWidth,TileHeight,bBlocksMovement,Shape,RequiredToolItemId,Skill,RequiredLevel,GatherTicks,XpPerAction,LootTableId,GatherActionLabel,MaxUses,LifetimeTicks
+oak_tree,Oak tree,,A sturdy oak tree.,1,1,true,Default,bronze_axe,Woodcutting,1,4,37,oak_tree,,0,0
+willow_tree,Willow tree,,Its branches droop gently.,1,1,true,Default,bronze_axe,Woodcutting,30,4,67,willow_tree,,0,0
+yew_tree,Yew tree,,Ancient and gnarled.,1,1,true,Default,rune_axe,Woodcutting,60,4,175,yew_tree,,0,0
+dead_tree,Dead tree,,A dried-out dead tree.,1,1,true,Default,bronze_axe,Woodcutting,1,3,25,dead_tree,Chop,4,0
+large_rock,Large rock,,An immovable grey rock.,2,2,true,Default,bronze_pickaxe,Mining,1,4,8,large_rock,,0,0
+copper_rock,Copper rock,,A vein of copper ore.,1,1,true,Default,bronze_pickaxe,Mining,1,3,17,copper_rock,,0,0
+tin_rock,Tin rock,,A vein of tin ore.,1,1,true,Default,bronze_pickaxe,Mining,1,3,17,tin_rock,,0,0
+iron_rock,Iron rock,,A vein of iron ore.,1,1,true,Default,iron_pickaxe,Mining,15,3,35,iron_rock,,0,0
+coal_rock,Coal rock,,A seam of coal.,1,1,true,Default,iron_pickaxe,Mining,30,3,50,coal_rock,,0,0
+shrimp_fishing_spot,Fishing Spot,,A calm spot for shrimp fishing.,1,1,false,Default,fishing_bait,Fishing,1,5,10,shrimp_fishing_spot,Bait,0,0
+net_fishing_spot,Fishing Spot,,A spot where you can net small fish.,1,1,false,Default,small_fishing_net,Fishing,1,5,10,net_fishing_spot,Net,0,0
+bank,Bank,/Script/Roguey.RogueyBankObject,A place to keep your valuables.,2,1,true,Default,,Hitpoints,0,0,0,,,0,0
+stone_pillar,Stone pillar,,An old stone pillar.,1,1,true,Pillar,,Hitpoints,0,0,0,,,0,0
+stone_wall,Stone wall,,A section of stone wall.,1,1,true,WallSegment,,Hitpoints,0,0,0,,,0,0
+stone_column,Stone column,,A solid square stone column. You cannot pass.,1,1,true,Column,,Hitpoints,0,0,0,,,0,0
+fire_pit,Fire pit,,A flickering fire on the ground.,1,1,false,Default,,Hitpoints,0,0,0,,,10,100
+rune_altar_fire,Fire Altar,,A runic altar crackling with fire energy.,2,2,true,Default,,Magic,1,3,50,altar_fire,Commune,5,0
+rune_altar_water,Water Altar,,A runic altar humming with water energy.,2,2,true,Default,,Magic,1,3,50,altar_water,Commune,5,0
+rune_altar_earth,Earth Altar,,A runic altar of earth and stone.,2,2,true,Default,,Magic,1,3,50,altar_earth,Commune,5,0
+rune_altar_air,Air Altar,,A runic altar swirling with air energy.,2,2,true,Default,,Magic,1,3,50,altar_air,Commune,5,0
+rune_altar_mind,Mind Altar,,A runic altar of mysterious psychic energy.,2,2,true,Default,,Magic,1,3,50,altar_mind,Commune,5,0
+rune_altar_chaos,Chaos Altar,,A runic altar radiating chaotic power.,2,2,true,Default,,Magic,1,3,50,altar_chaos,Commune,5,0
+rune_altar_nature,Nature Altar,,A runic altar in tune with nature.,2,2,true,Default,,Magic,1,3,50,altar_nature,Commune,5,0
+rune_altar_death,Death Altar,,A runic altar dark with death magic.,2,2,true,Default,,Magic,1,3,50,altar_death,Commune,5,0
+anvil,Anvil,,A heavy iron anvil for smithing.,1,1,true,Default,,Smithing,1,0,0,,Smith,0,0
+forge,Forge,,A stone forge for smelting ore into bars.,1,1,true,Default,,Smithing,1,0,0,,Smelt,0,0
+mithril_rock,Mithril rock,,A vein of shimmering mithril ore.,1,1,true,Default,steel_pickaxe,Mining,55,4,80,mithril_rock,,0,0
+coal_rock_deep,Deep coal seam,,A thick seam of coal.,1,1,true,Default,iron_pickaxe,Mining,30,4,55,coal_rock_deep,,0,0
+teak_tree,Teak tree,,A straight-grained tropical hardwood.,1,2,true,Default,iron_axe,Woodcutting,35,4,85,teak_tree,,0,0
+maple_tree,Maple tree,,A tall maple with a wide canopy.,2,2,true,Default,steel_axe,Woodcutting,45,5,100,maple_tree,,0,0
+fly_fishing_spot,Fishing Spot,,A spot where you can fly-fish.,1,1,false,Default,fishing_rod,Fishing,20,5,50,fly_fishing_spot,Fly-fish,0,0
+cage_fishing_spot,Fishing Spot,,A good spot for lobster cage fishing.,1,1,false,Default,lobster_pot,Fishing,40,6,65,cage_fishing_spot,Cage,0,0
+chest,Old Chest,,A dusty old chest. Could be something inside.,1,1,true,Default,,Hitpoints,0,0,0,chest,Open,1,0
+bedroll,Bedroll,,A worn bedroll left by a traveller.,1,1,false,Default,,Hitpoints,0,0,0,,,0,0
+log_bench,Log Bench,,A log propped up as a crude bench.,1,1,true,Default,,Hitpoints,0,0,0,,,0,0
+supply_crate,Supply Crate,,A weathered supply crate. Could be something useful inside.,1,1,true,Default,,Hitpoints,0,0,0,chest,Open,1,0
+bog_log,Bog Log,,A mossy log half-sunk in the mire.,1,1,true,Default,bronze_axe,Woodcutting,1,2,10,dead_tree,Chop,2,0
+will_o_wisp,Will-o'-Wisp,,A ghostly light drifting over the water.,1,1,false,Default,,Hitpoints,0,0,0,,,0,0
+gnarled_root,Gnarled Root,,A twisted mass of old roots.,1,1,true,Default,,Hitpoints,0,0,0,,,0,0
+mossy_altar,Mossy Altar,,An overgrown stone altar etched with strange symbols.,1,1,true,Default,,Hitpoints,0,0,0,,,0,0
+mushroom_cluster,Mushroom Cluster,,A ring of large spotted mushrooms.,1,1,false,Default,,Hitpoints,0,0,0,,,0,0
+ancient_tree,Ancient Tree,,A massive ancient tree draped in moss.,1,1,true,Default,rune_axe,Woodcutting,50,5,150,yew_tree,,0,0

@@ -1,0 +1,15 @@
+---,DisplayName,Description,Category,Effect,EffectValue,UpgradesFromId
+passive_brawler_1,Brawler I,+8 Melee Attack bonus.,Combat,MeleeAttackBonus,8,
+passive_brawler_2,Brawler II,+16 Melee Attack bonus total.,Combat,MeleeAttackBonus,16,passive_brawler_1
+passive_crusher_1,Crusher I,+8 Melee Strength bonus.,Combat,MeleeStrengthBonus,8,
+passive_crusher_2,Crusher II,+16 Melee Strength bonus total.,Combat,MeleeStrengthBonus,16,passive_crusher_1
+passive_guardian_1,Guardian I,+8 Melee Defence bonus.,Combat,MeleeDefenceBonus,8,
+passive_guardian_2,Guardian II,+16 Melee Defence bonus total.,Combat,MeleeDefenceBonus,16,passive_guardian_1
+passive_ranger_1,Ranger,+8 Ranged Attack bonus.,Combat,RangedAttackBonus,8,
+passive_mage_1,Mage,+8 Magic Attack bonus.,Combat,MagicAttackBonus,8,
+passive_brute_1,Brute,Attack 1 tick faster.,Combat,AttackSpeedReduction,1,
+passive_vitality_1,Vitality,+10 maximum HP.,Combat,MaxHPBonus,10,
+passive_forager_1,Forager I,Gather 1 tick faster.,Skilling,GatherSpeedReduction,1,
+passive_forager_2,Forager II,Gather 2 ticks faster total.,Skilling,GatherSpeedReduction,2,passive_forager_1
+passive_swift_hands_1,Swift Hands,Gather 1 tick faster.,Skilling,GatherSpeedReduction,1,
+passive_artisan_1,Artisan,Gather 1 tick faster.,Skilling,GatherSpeedReduction,1,

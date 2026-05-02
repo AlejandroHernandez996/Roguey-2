@@ -1,0 +1,8 @@
+---,DisplayName,StationTypeId,ToolItemId,TriggerItemId,InputItem1Id,InputItem1Qty,InputItem2Id,InputItem2Qty,OutputItemId,OutputQty,Skill,LevelRequired,XpAmount,ProcessingTicks
+fletch_arrow_shaft_logs,Arrow shafts (15),,knife,logs,logs,1,,,arrow_shaft,15,Fletching,1,5,1
+fletch_arrow_shaft_oak,Arrow shafts (30),,knife,oak_logs,oak_logs,1,,,arrow_shaft,30,Fletching,1,10,1
+fletch_unstrung_oak_shortbow,Unstrung oak shortbow,,knife,oak_logs,oak_logs,1,,,unstrung_oak_shortbow,1,Fletching,20,25,2
+smelt_bronze_bar,Bronze bar,forge,,,copper_ore,1,tin_ore,1,bronze_bar,1,Smithing,1,6,2
+smelt_iron_bar,Iron bar,forge,,,iron_ore,1,,,iron_bar,1,Smithing,15,25,2
+forge_bronze_dagger,Bronze dagger,anvil,hammer,,bronze_bar,1,,,bronze_dagger,1,Smithing,1,12,2
+forge_iron_dagger,Iron dagger,anvil,hammer,,iron_bar,1,,,iron_dagger,1,Smithing,15,25,2

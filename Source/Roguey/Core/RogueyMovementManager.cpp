@@ -24,26 +24,32 @@ void URogueyMovementManager::RogueyTick(int32 TickIndex)
 		return false;
 	};
 
-	// Players always move before NPCs so player position is authoritative when NPCs resolve
+	// Players always move before NPCs so player position is authoritative when NPCs resolve.
+	// Partition PendingPaths into valid (sorted) and invalid (immediate cleanup) in one pass.
+	// We snapshot here rather than iterating PendingPaths directly because StableSort would
+	// dereference pointer-array elements before calling the comparator predicate — crashing on
+	// any pawn that became invalid since the last tick.
+	TArray<ARogueyPawn*> Finished;
 	TArray<ARogueyPawn*> SortedPawns;
 	SortedPawns.Reserve(PendingPaths.Num());
 	for (auto& [Pawn, Path] : PendingPaths)
-		SortedPawns.Add(Pawn);
+	{
+		if (IsValid(Pawn)) SortedPawns.Add(Pawn);
+		else               Finished.Add(Pawn);
+	}
 	SortedPawns.StableSort([](const ARogueyPawn& A, const ARogueyPawn& B)
 	{
 		return A.IsPlayerControlled() && !B.IsPlayerControlled();
 	});
 
-	TArray<ARogueyPawn*> Finished;
-
 	for (ARogueyPawn* Pawn : SortedPawns)
 	{
-		FRogueyPath& Path = PendingPaths[Pawn];
-		if (!IsValid(Pawn) || Pawn->IsDead())
+		if (Pawn->IsDead())
 		{
 			Finished.Add(Pawn);
 			continue;
 		}
+		FRogueyPath& Path = PendingPaths[Pawn];
 
 		if (!Path.IsValid())
 		{

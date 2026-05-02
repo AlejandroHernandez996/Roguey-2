@@ -2,15 +2,40 @@
 
 ## Overview
 
-`URogueyCombatManager` is a stateless calculator owned by `ARogueyGameMode`. It does not tick. `URogueyActionManager` calls `TryAttack()` when an action resolves.
+`URogueyCombatManager` is owned by `ARogueyGameMode`. `URogueyActionManager` calls `TryCombatAttack()` when an attack action resolves.
 
 ## Entry Point
 
 ```cpp
-int32 TryAttack(ARogueyPawn* Attacker, ARogueyPawn* Target, int32 TickIndex);
+bool TryCombatAttack(ARogueyPawn* Attacker, ARogueyPawn* Target, int32 TickIndex);
 ```
 
-Returns the damage dealt (≥ 0 including misses which return 0) or **-1** if the attacker is still on cooldown. Applies the damage to `Target->CurrentHP` and records `Attacker->LastAttackTick = TickIndex`.
+Derives attacker and defender styles, applies the combat triangle multiplier, then dispatches to the correct style-specific path. Returns `true` if an attack fired this tick, `false` if still on cooldown.
+
+The three individual methods are kept for backward-compatible tests:
+```cpp
+int32 TryAttack     (Attacker, Target, TickIndex, DamageMult = 1.0f);   // melee
+bool  TryRangedAttack(Attacker, Target, TickIndex, DamageMult = 1.0f);   // ranged
+bool  TryMagicAttack (Attacker, Target, TickIndex, TriangleMult = 1.0f); // magic
+```
+
+## Combat Styles
+
+`ECombatStyle` (Melee / Ranged / Magic) lives in `RogueyEquipmentBonuses.h`.
+
+| Pawn type | Style derived from |
+|---|---|
+| **Attacker** | `bMagicWeapon` → Magic; `AttackRange > 1` → Ranged; else Melee |
+| **NPC defender** | `FRogueyNpcRow::DefenderStyle` (data-driven) |
+| **Player defender** | Same as DeriveAttackerStyle (weapon loadout) |
+
+## Combat Triangle
+
+```
+Ranged > Melee,  Magic > Ranged,  Melee > Magic
+```
+
+When the attacker has triangle advantage, `CombatTriangleMultiplier = 1.075f` is applied to the pre-rolled damage (non-zero hits only; misses stay 0).
 
 ## Cooldown
 
@@ -18,25 +43,18 @@ Returns the damage dealt (≥ 0 including misses which return 0) or **-1** if th
 On cooldown if: TickIndex - Attacker->LastAttackTick < Attacker->AttackCooldownTicks
 ```
 
-`AttackCooldownTicks = 4` by default (4 × 0.6s = 2.4s, equivalent to OSRS attack speed 4).
+`AttackCooldownTicks = 4` by default (4 × 0.6s = 2.4s). Set by `RecalcEquipmentBonuses` from weapon's `AttackSpeedTicks`.
 
-Eating food adds to `AttackCooldownTicks` on the tick it is consumed (see Items doc):
-- Food3Tick: `+3 ticks`
-- FoodQuick: `+2 ticks`
-- Potion: `+0 ticks`
-
-This is additive with any existing cooldown, matching OSRS eat-while-attacking behaviour.
+Eating food adds `FoodCooldownPenalty` (Food3Tick: +3, FoodQuick: +2). Consumed on the next attack. Matches OSRS eat-while-attacking behaviour.
 
 ## Damage Formula (OSRS-derived)
 
 ### Max Hit
 
 ```
-EffLevel = CombatLevel + 8   // invisible +8 offset from OSRS
+EffLevel = CombatLevel + 8
 MaxHit   = floor(0.5 + EffLevel * (StrBonus + 64) / 640)
 ```
-
-`StrBonus` is the equipment melee strength bonus summed from `EquipmentBonuses.MeleeStrength`.
 
 ### Hit Chance
 
@@ -57,30 +75,55 @@ if FRand() >= HitChance → damage = 0 (miss)
 else → damage = RandRange(1, MaxHit)
 ```
 
+Multipliers (triangle, elemental weakness) are applied after the roll, only when damage > 0: `FinalDamage = max(1, round(RawDamage * WeaknessMod * TriangleMult))`.
+
+## Stats Used by Style
+
+| Style | AtkLevel | AtkBonus | StrBonus | DefLevel | DefBonus |
+|---|---|---|---|---|---|
+| Melee | Strength | MeleeAttack | MeleeStrength | Defence | MeleeDefence |
+| Ranged | Dexterity | RangedAttack | RangedStrength | Defence | RangedDefence |
+| Magic | Magic | MagicAttack | MagicStrength | Defence | MagicDefence |
+
+`FRogueyEquipmentBonuses` provides `GetAttackBonus(Style)`, `GetStrengthBonus(Style)`, `GetDefenceBonus(Style)` accessors.
+
 ## XP
 
 On any hit where `Damage > 0`:
 
 ```
-XP gained = Damage * 4   (in the Melee stat)
+XP gained = Damage * 4   (in the style's primary stat)
 ```
 
-Level-up triggers `ShowSpeechBubble("Melee level N!")` on the attacker.
+Level-up triggers `ShowSpeechBubble("Stat level N!")` on the attacker.
 
-## Stats Used
+## Elemental Weaknesses
 
-| Stat | Source |
+`FRogueyNpcRow` stores four float multipliers: `WeaknessAir`, `WeaknessWater`, `WeaknessEarth`, `WeaknessFire`. Applied in `TryMagicAttack` based on the spell's `RuneId`.
+
+| NPC | Notable weakness |
 |---|---|
-| `AtkLevel` | `Attacker->StatPage.GetCurrentLevel(ERogueyStatType::Melee)` |
-| `AtkBonus` | `Attacker->EquipmentBonuses.MeleeAttack` |
-| `StrBonus` | `Attacker->EquipmentBonuses.MeleeStrength` |
-| `DefLevel` | `Target->StatPage.GetCurrentLevel(ERogueyStatType::Defence)` |
-| `DefBonus` | `Target->EquipmentBonuses.MeleeDefence` |
+| `skeleton` | Fire × 1.5 |
+| `dungeon_lord` | Water × 1.5, Fire × 0.5 |
+| `forest_boss` | Earth × 1.5, Fire × 0.5 |
+| All others | 1.0 (neutral) |
 
-## Styles Not Yet Implemented
+For magic attacks: `FinalDamage = max(1, round(RawDamage * WeaknessMod * TriangleMult))`.
 
-Ranged and Magic are planned but not wired. `RollDamage` / `ComputeMaxHit` / `ComputeHitChance` are style-agnostic — they take raw level + bonus values. When Ranged/Magic are added, pass the appropriate stat and bonus values without changing the formula functions.
+## NPC Combat Data
+
+New columns added in `DT_Npcs.csv`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `MagicLevel` | int32 | Magic attack level (default 1) |
+| `MagicAttackBonus` | int32 | Magic accuracy bonus |
+| `MagicStrengthBonus` | int32 | Magic strength bonus |
+| `MagicDefenceBonus` | int32 | Magic defence bonus |
+| `DefenderStyle` | ECombatStyle | Style used for triangle check (Melee/Ranged/Magic) |
+
+`dark_ranger` and `forest_boss` have `DefenderStyle=Ranged`; all others default to `Melee`.
 
 ## HP Replication
 
-`CurrentHP` has `ReplicatedUsing = OnRep_HP`. After `TryAttack` modifies it server-side, UE replicates it automatically. The hit splat system uses a separate `HitSplatCounter + LastHitDamage` pair (both replicated) so `OnRep_HitSplat` fires even when the same damage value repeats.
+`CurrentHP` has `ReplicatedUsing = OnRep_HP`. After `TryCombatAttack` modifies it server-side, UE replicates it automatically. Hit splats use `HitSplatCounter` (`ReplicatedUsing = OnRep_HitSplat`) paired with `LastHitDamage` (`Replicated`). Only `HitSplatCounter` drives the callback so remote clients fire `OnRep_HitSplat` exactly once per hit.

@@ -1,5 +1,6 @@
----,AreaName,RoomType,GenAlgorithm,GridWidth,GridHeight,BspMinRoomSize,BspMaxRoomSize,BspMinRoomCount,CaFillRatio,CaIterations,TilePalette,NextAreaId,bRequireClearForPortal
-hub,Hub,Hub,CellularAutomata,40,40,6,14,4,0.55,4,ForestGround,forest_1,false
-forest_1,Forest,Combat,CellularAutomata,56,56,6,14,4,0.52,5,ForestGround,dungeon_1,true
-dungeon_1,Dungeon,Combat,BSP,56,56,6,16,6,0.45,4,DungeonStone,boss_1,true
-boss_1,Boss Chamber,Boss,BSP,40,40,10,20,3,0.45,4,DungeonStone,hub,true
+---,AreaName,RoomType,GenAlgorithm,GridWidth,GridHeight,BspMinRoomSize,BspMaxRoomSize,CaFillRatio,CaIterations,TilePalette,NextAreaId,bRequireClearForPortal,bPortalIsEndlessEntry,VillageMinBuildings,VillageMaxBuildings,VillagePlazaRadius,VillageRoadWidth,VillageSideRoadWidth,ForestDensity,ForestCaIterations,ForestNumTrails,ForestNumClearings,ForestClearingRadiusMin,ForestClearingRadiusMax,ForestNumPonds,ForestPondRadiusMin,ForestPondRadiusMax,ForestNumRivers,ForestRiverWidth
+hub,Hub Town,Hub,Village,64,64,6,14,0.55,4,ForestGround,forest_1,false,true,5,9,6,3,2,0.2,3,2,4,3,5,0,3,6,0,2
+forest_1,Forest,Combat,Forest,64,64,6,14,0.52,5,ForestGround,forest_boss_1,true,false,4,8,6,3,2,0.20,3,2,4,3,5,2,3,6,1,2
+forest_boss_1,Forest Boss,Boss,BSP,40,40,10,25,0.45,4,ForestGround,hub,true,false,4,8,6,3,2,0.2,3,2,4,3,5,0,3,6,0,2
+dungeon_1,Dungeon,Combat,BSP,56,56,6,16,0.45,4,DungeonStone,boss_1,true,false,4,8,6,3,2,0.2,3,2,4,3,5,0,3,6,0,2
+boss_1,Boss Chamber,Boss,OpenRoom,32,32,10,20,0.45,4,DungeonStone,hub,true,false,4,8,6,3,2,0.2,3,2,4,3,5,0,3,6,0,2

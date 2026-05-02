@@ -33,7 +33,7 @@ public:
 	FName NpcTypeId;
 
 	// Runtime AI behavior — initialized from row in BeginPlay, kept writable for debug overrides.
-	UPROPERTY(EditAnywhere, Category = "NPC|Behavior")
+	UPROPERTY(EditAnywhere, Replicated, Category = "NPC|Behavior")
 	ENpcBehavior Behavior = ENpcBehavior::Defensive;
 
 	UPROPERTY(EditAnywhere, Category = "NPC|Behavior")
@@ -50,6 +50,10 @@ public:
 	int32                       WanderCooldown = 0;
 
 	virtual void ReceiveHit(int32 Damage, ARogueyPawn* Attacker = nullptr) override;
+
+	// Called when a player uses an item directly on this NPC.
+	// Returns true if the NPC handled the event (item will be consumed by caller).
+	virtual bool OnItemOffered(FName ItemId, int32 Quantity, ARogueyPawn* Offerer) { return false; }
 
 protected:
 	virtual void BeginPlay() override;

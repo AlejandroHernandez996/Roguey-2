@@ -1,0 +1,12 @@
+---,ShopId,ItemId,Price,Stock
+innkeeper_bronze_axe,innkeeper,bronze_axe,15,0
+innkeeper_bronze_pickaxe,innkeeper,bronze_pickaxe,15,0
+innkeeper_fishing_rod,innkeeper,fishing_rod,30,0
+innkeeper_fishing_bait,innkeeper,fishing_bait,2,0
+innkeeper_small_net,innkeeper,small_fishing_net,20,0
+innkeeper_bread,innkeeper,bread,20,0
+innkeeper_trout,innkeeper,trout,50,0
+innkeeper_salmon,innkeeper,salmon,80,0
+innkeeper_lobster,innkeeper,lobster,200,0
+innkeeper_melee_pot,innkeeper,melee_potion_4,300,0
+innkeeper_def_pot,innkeeper,defence_potion_4,250,0

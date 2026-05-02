@@ -1,40 +1,85 @@
----,DisplayName,Type,Icon,bStackable,MaxStack,Value,MeleeAttackBonus,MeleeStrengthBonus,MeleeDefenceBonus,RangedAttackBonus,MagicAttackBonus,HealAmount,MaxDoses,StatBuffType,StatBuffAmount,StatBuffDurationTicks,DepletedItemId,ExamineText
-bronze_sword,Bronze sword,Weapon,,false,1,15,4,5,0,0,0,0,0,Melee,0,0,,A beaten-up sword.
-iron_sword,Iron sword,Weapon,,false,1,60,10,11,0,0,0,0,0,Melee,0,0,,Better than bronze.
-steel_sword,Steel sword,Weapon,,false,1,200,17,18,0,0,0,0,0,Melee,0,0,,A sharp steel blade.
-iron_scimitar,Iron scimitar,Weapon,,false,1,80,14,13,0,0,0,0,0,Melee,0,0,,Fast and light.
-steel_scimitar,Steel scimitar,Weapon,,false,1,300,22,22,0,0,0,0,0,Melee,0,0,,A roguelite classic.
-bronze_full_helm,Bronze full helm,HeadArmor,,false,1,25,0,0,7,0,0,0,0,Melee,0,0,,Smells of adventure.
-iron_full_helm,Iron full helm,HeadArmor,,false,1,90,0,0,14,0,0,0,0,Melee,0,0,,Solid protection.
-bronze_chainbody,Bronze chainbody,BodyArmor,,false,1,40,0,0,13,0,0,0,0,Melee,0,0,,Jangling metal links.
-iron_chainbody,Iron chainbody,BodyArmor,,false,1,120,0,0,24,0,0,0,0,Melee,0,0,,Heavy but reliable.
-bronze_platelegs,Bronze platelegs,LegArmor,,false,1,35,0,0,11,0,0,0,0,Melee,0,0,,Greaves of old bronze.
-iron_platelegs,Iron platelegs,LegArmor,,false,1,100,0,0,20,0,0,0,0,Melee,0,0,,Sturdy iron legwear.
-wooden_shield,Wooden shield,Shield,,false,1,8,0,0,4,0,0,0,0,Melee,0,0,,Barely counts as a shield.
-iron_sq_shield,Iron sq shield,Shield,,false,1,75,0,0,16,0,0,0,0,Melee,0,0,,A square iron shield.
-amulet_of_strength,Amulet of strength,Neck,,false,1,400,0,10,0,0,0,0,0,Melee,0,0,,Increases your strength.
-shrimp,Shrimp,Food3Tick,,true,28,5,0,0,0,0,0,3,0,Melee,0,0,,Small but edible.
-bread,Bread,Food3Tick,,true,28,12,0,0,0,0,0,5,0,Melee,0,0,,Freshly baked.
-trout,Trout,Food3Tick,,true,28,25,0,0,0,0,0,7,0,Melee,0,0,,A cooked trout.
-salmon,Salmon,Food3Tick,,true,28,40,0,0,0,0,0,9,0,Melee,0,0,,A cooked salmon.
-lobster,Lobster,Food3Tick,,true,28,120,0,0,0,0,0,12,0,Melee,0,0,,Rich and healing.
-karambwan,Karambwan,FoodQuick,,true,28,200,0,0,0,0,0,18,0,Melee,0,0,,A cooked karambwan.
-melee_potion_4,Melee potion(4),Potion,,false,1,350,0,0,0,0,0,0,4,Melee,10,150,empty_vial,Temporarily boosts Melee.
-defence_potion_4,Defence potion(4),Potion,,false,1,300,0,0,0,0,0,0,4,Defence,10,150,empty_vial,Temporarily boosts Defence.
-empty_vial,Empty vial,Usable,,true,28,1,0,0,0,0,0,0,0,Melee,0,0,,A glass vial.
-bones,Bones,Misc,,true,28,1,0,0,0,0,0,0,0,Melee,0,0,,Remains of a creature.
-coins,Coins,Misc,,true,28,1,0,0,0,0,0,0,0,Melee,0,0,,Currency of the realm.
-bronze_axe,Bronze axe,Usable,,false,1,10,0,0,0,0,0,0,0,Melee,0,0,,Good for chopping trees.
-iron_axe,Iron axe,Usable,,false,1,40,0,0,0,0,0,0,0,Melee,0,0,,Chops faster than bronze.
-steel_axe,Steel axe,Usable,,false,1,120,0,0,0,0,0,0,0,Melee,0,0,,A reliable woodcutting axe.
-rune_axe,Rune axe,Usable,,false,1,800,0,0,0,0,0,0,0,Melee,0,0,,The best axe you can get.
-bronze_pickaxe,Bronze pickaxe,Usable,,false,1,10,0,0,0,0,0,0,0,Melee,0,0,,Good for breaking rocks.
-iron_pickaxe,Iron pickaxe,Usable,,false,1,40,0,0,0,0,0,0,0,Melee,0,0,,Mines faster than bronze.
-steel_pickaxe,Steel pickaxe,Usable,,false,1,120,0,0,0,0,0,0,0,Melee,0,0,,A reliable mining pick.
-oak_logs,Oak logs,Usable,,true,28,8,0,0,0,0,0,0,0,Melee,0,0,,Logs from an oak tree.
-willow_logs,Willow logs,Usable,,true,28,15,0,0,0,0,0,0,0,Melee,0,0,,Logs from a willow tree.
-yew_logs,Yew logs,Usable,,true,28,80,0,0,0,0,0,0,0,Melee,0,0,,Logs from a yew tree.
-copper_ore,Copper ore,Usable,,true,28,5,0,0,0,0,0,0,0,Melee,0,0,,A chunk of copper ore.
-tin_ore,Tin ore,Usable,,true,28,5,0,0,0,0,0,0,0,Melee,0,0,,A chunk of tin ore.
-iron_ore,Iron ore,Usable,,true,28,15,0,0,0,0,0,0,0,Melee,0,0,,A chunk of iron ore.
-coal,Coal,Usable,,true,28,20,0,0,0,0,0,0,0,Melee,0,0,,A lump of coal.
+---,DisplayName,Type,Icon,bStackable,MaxStack,Value,AttackSpeedTicks,MeleeAttackBonus,MeleeStrengthBonus,MeleeDefenceBonus,RangedAttackBonus,RangedStrengthBonus,RangedDefenceBonus,AttackRangeTiles,ProjectileSpeedTicks,AmmoCompatTag,MagicAttackBonus,MagicStrengthBonus,MagicDefenceBonus,bMagicWeapon,HealAmount,MaxDoses,StatBuffType,StatBuffAmount,StatBuffDurationTicks,DepletedItemId,ExamineText
+dev_dagger,Dev Dagger,Weapon,,false,1,0,2,80,80,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A suspiciously sharp dev tool.
+bronze_sword,Bronze sword,Weapon,,false,1,15,0,4,5,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A beaten-up sword.
+iron_sword,Iron sword,Weapon,,false,1,60,0,10,11,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Better than bronze.
+steel_sword,Steel sword,Weapon,,false,1,200,0,17,18,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A sharp steel blade.
+iron_scimitar,Iron scimitar,Weapon,,false,1,80,0,14,13,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Fast and light.
+steel_scimitar,Steel scimitar,Weapon,,false,1,300,0,22,22,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A roguelite classic.
+shortbow,Short bow,Weapon,,false,1,150,5,0,0,0,22,0,0,7,2,arrows,0,0,0,false,0,0,Strength,0,0,,A short bow. Requires arrows.
+oak_shortbow,Oak shortbow,Weapon,,false,1,350,5,0,0,0,32,0,0,7,2,arrows,0,0,0,false,0,0,Strength,0,0,,A shortbow made from oak. Requires arrows.
+bronze_arrows,Bronze arrows,Ammo,,true,10000,2,0,0,0,0,0,7,0,1,0,arrows,0,0,0,false,0,0,Strength,0,0,,Arrows tipped with bronze.
+iron_arrows,Iron arrows,Ammo,,true,10000,5,0,0,0,0,0,10,0,1,0,arrows,0,0,0,false,0,0,Strength,0,0,,Arrows tipped with iron.
+steel_arrows,Steel arrows,Ammo,,true,10000,15,0,0,0,0,0,14,0,1,0,arrows,0,0,0,false,0,0,Strength,0,0,,Arrows tipped with steel.
+bronze_knife,Bronze knife,Weapon,,true,10000,8,3,0,0,0,18,10,0,4,1,,0,0,0,false,0,0,Strength,0,0,,A small throwing knife.
+iron_knife,Iron knife,Weapon,,true,10000,25,3,0,0,0,26,14,0,4,1,,0,0,0,false,0,0,Strength,0,0,,A sharp iron throwing knife.
+bronze_full_helm,Bronze full helm,HeadArmor,,false,1,25,0,0,0,7,0,0,3,1,0,,0,0,0,false,0,0,Strength,0,0,,Smells of adventure.
+iron_full_helm,Iron full helm,HeadArmor,,false,1,90,0,0,0,14,0,0,5,1,0,,0,0,0,false,0,0,Strength,0,0,,Solid protection.
+bronze_chainbody,Bronze chainbody,BodyArmor,,false,1,40,0,0,0,13,0,0,6,1,0,,0,0,0,false,0,0,Strength,0,0,,Jangling metal links.
+iron_chainbody,Iron chainbody,BodyArmor,,false,1,120,0,0,0,24,0,0,10,1,0,,0,0,0,false,0,0,Strength,0,0,,Heavy but reliable.
+bronze_platelegs,Bronze platelegs,LegArmor,,false,1,35,0,0,0,11,0,0,5,1,0,,0,0,0,false,0,0,Strength,0,0,,Greaves of old bronze.
+iron_platelegs,Iron platelegs,LegArmor,,false,1,100,0,0,0,20,0,0,8,1,0,,0,0,0,false,0,0,Strength,0,0,,Sturdy iron legwear.
+wooden_shield,Wooden shield,Shield,,false,1,8,0,0,0,4,0,0,2,1,0,,0,0,0,false,0,0,Strength,0,0,,Barely counts as a shield.
+iron_sq_shield,Iron sq shield,Shield,,false,1,75,0,0,0,16,0,0,6,1,0,,0,0,0,false,0,0,Strength,0,0,,A square iron shield.
+amulet_of_strength,Amulet of strength,Neck,,false,1,400,0,0,10,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Increases your strength.
+shrimp,Shrimp,Food3Tick,,true,28,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,3,0,Strength,0,0,,Small but edible.
+bread,Bread,Food3Tick,,true,28,12,0,0,0,0,0,0,0,1,0,,0,0,0,false,5,0,Strength,0,0,,Freshly baked.
+trout,Trout,Food3Tick,,true,28,25,0,0,0,0,0,0,0,1,0,,0,0,0,false,7,0,Strength,0,0,,A cooked trout.
+salmon,Salmon,Food3Tick,,true,28,40,0,0,0,0,0,0,0,1,0,,0,0,0,false,9,0,Strength,0,0,,A cooked salmon.
+lobster,Lobster,Food3Tick,,true,28,120,0,0,0,0,0,0,0,1,0,,0,0,0,false,12,0,Strength,0,0,,Rich and healing.
+karambwan,Karambwan,FoodQuick,,true,28,200,0,0,0,0,0,0,0,1,0,,0,0,0,false,18,0,Strength,0,0,,A cooked karambwan.
+melee_potion_4,Melee potion(4),Potion,,false,1,350,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,4,Strength,10,150,empty_vial,Temporarily boosts Melee.
+defence_potion_4,Defence potion(4),Potion,,false,1,300,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,4,Defence,10,150,empty_vial,Temporarily boosts Defence.
+empty_vial,Empty vial,Usable,,true,28,1,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A glass vial.
+bones,Bones,Misc,,true,28,1,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Remains of a creature.
+coins,Coins,Misc,,true,28,1,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Currency of the realm.
+bronze_axe,Bronze axe,Usable,,false,1,10,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Good for chopping trees.
+iron_axe,Iron axe,Usable,,false,1,40,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Chops faster than bronze.
+steel_axe,Steel axe,Usable,,false,1,120,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A reliable woodcutting axe.
+rune_axe,Rune axe,Usable,,false,1,800,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,The best axe you can get.
+bronze_pickaxe,Bronze pickaxe,Usable,,false,1,10,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Good for breaking rocks.
+iron_pickaxe,Iron pickaxe,Usable,,false,1,40,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Mines faster than bronze.
+steel_pickaxe,Steel pickaxe,Usable,,false,1,120,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A reliable mining pick.
+rocks,Rocks,Usable,,true,28,2,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Chunks of rock broken off a large stone.
+logs,Logs,Usable,,true,28,3,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Dry logs from a dead tree.
+oak_logs,Oak logs,Usable,,true,28,8,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Logs from an oak tree.
+willow_logs,Willow logs,Usable,,true,28,15,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Logs from a willow tree.
+yew_logs,Yew logs,Usable,,true,28,80,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Logs from a yew tree.
+copper_ore,Copper ore,Usable,,true,28,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A chunk of copper ore.
+tin_ore,Tin ore,Usable,,true,28,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A chunk of tin ore.
+iron_ore,Iron ore,Usable,,true,28,15,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A chunk of iron ore.
+coal,Coal,Usable,,true,28,20,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A lump of coal.
+fishing_rod,Fishing rod,Usable,,false,1,30,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Good for catching fish.
+fishing_bait,Fishing bait,Usable,,true,10000,1,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Worms and grubs.
+small_fishing_net,Small fishing net,Usable,,false,1,20,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Handy for netting small fish.
+anchovies,Anchovies,Food3Tick,,true,28,3,0,0,0,0,0,0,0,1,0,,0,0,0,false,1,0,Strength,0,0,,Small silvery fish.
+sardine,Sardine,Food3Tick,,true,28,4,0,0,0,0,0,0,0,1,0,,0,0,0,false,2,0,Strength,0,0,,A common coastal fish.
+raw_shrimp,Raw shrimp,Usable,,true,28,2,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Needs to be cooked.
+raw_anchovies,Raw anchovies,Usable,,true,28,2,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Needs to be cooked.
+raw_sardine,Raw sardine,Usable,,true,28,2,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Needs to be cooked.
+hammer,Hammer,Usable,,false,1,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Good for smithing.
+knife,Knife,Usable,,false,1,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A simple crafting knife.
+magic_staff,Magic staff,Weapon,,false,1,100,5,0,0,0,0,0,0,7,0,,20,80,5,true,0,0,Magic,0,0,,A staff imbued with arcane energy.
+rune_air,Air Rune,Rune,,true,10000,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune imbued with air magic.
+rune_water,Water Rune,Rune,,true,10000,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune imbued with water magic.
+rune_earth,Earth Rune,Rune,,true,10000,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune imbued with earth magic.
+rune_fire,Fire Rune,Rune,,true,10000,5,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune imbued with fire magic.
+rune_mind,Mind Rune,Rune,,true,10000,10,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune of psychic force.
+rune_chaos,Chaos Rune,Rune,,true,10000,15,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune of chaotic power.
+rune_nature,Nature Rune,Rune,,true,10000,20,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune attuned to nature.
+rune_death,Death Rune,Rune,,true,10000,25,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A rune of dark death magic.
+arrow_shaft,Arrow shaft,Usable,,true,10000,1,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A wooden shaft for an arrow.
+rune_pickaxe,Rune pickaxe,Usable,,false,1,2500,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,The finest mining pickaxe available.
+lobster_pot,Lobster pot,Usable,,false,1,50,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A wicker cage for catching lobsters.
+mithril_ore,Mithril ore,Usable,,true,28,20,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A chunk of shimmering mithril ore.
+teak_logs,Teak logs,Usable,,true,28,30,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Dense tropical hardwood logs.
+maple_logs,Maple logs,Usable,,true,28,40,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Logs from a large maple tree.
+raw_trout,Raw trout,Usable,,true,28,8,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Needs to be cooked.
+raw_salmon,Raw salmon,Usable,,true,28,12,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Needs to be cooked.
+raw_lobster,Raw lobster,Usable,,true,28,20,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,Needs to be cooked.
+steel_bar,Steel bar,Usable,,true,28,35,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A bar of steel.
+mithril_bar,Mithril bar,Usable,,true,28,80,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A bar of mithril.
+unstrung_oak_shortbow,Unstrung oak shortbow,Usable,,false,1,20,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,An oak bow frame waiting for a string.
+bronze_bar,Bronze bar,Usable,,true,28,8,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A bar of bronze.
+iron_bar,Iron bar,Usable,,true,28,20,0,0,0,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A bar of iron.
+bronze_dagger,Bronze dagger,Weapon,,false,1,10,3,2,3,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A small bronze dagger.
+iron_dagger,Iron dagger,Weapon,,false,1,30,3,4,5,0,0,0,0,1,0,,0,0,0,false,0,0,Strength,0,0,,A sharp iron dagger.

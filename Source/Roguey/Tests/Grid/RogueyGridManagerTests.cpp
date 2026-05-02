@@ -292,4 +292,70 @@ bool FGrid_CanActorMoveTo_FootprintExceedsGridBounds::RunTest(const FString& Par
 	return true;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Chunk streaming — LoadChunkTiles / UnloadChunkTiles
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClearGrid — bulk-wipes all tiles without reinitialising
+// ─────────────────────────────────────────────────────────────────────────────
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrid_ClearGrid, "Roguey.Grid.ClearGrid", GRID_TEST_FLAGS)
+bool FGrid_ClearGrid::RunTest(const FString& Parameters)
+{
+	URogueyGridManager* Grid = MakeGridMgr(10, 10);
+
+	// Grid was initialised — (5, 5) should be in bounds
+	TestTrue("Tile in bounds before ClearGrid", Grid->IsInBounds(FIntVector2(5, 5)));
+	TestTrue("Tile in bounds before ClearGrid", Grid->IsInBounds(FIntVector2(0, 0)));
+
+	Grid->ClearGrid();
+
+	// After ClearGrid all tiles must be gone
+	TestFalse("Tile gone after ClearGrid", Grid->IsInBounds(FIntVector2(5, 5)));
+	TestFalse("Corner tile gone after ClearGrid", Grid->IsInBounds(FIntVector2(0, 0)));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrid_ChunkLoad, "Roguey.Grid.Chunk.Load", GRID_TEST_FLAGS)
+bool FGrid_ChunkLoad::RunTest(const FString& Parameters)
+{
+	URogueyGridManager* Grid = NewObject<URogueyGridManager>(GetTransientPackage());
+	// Forest mode — no Init(); tiles start empty
+
+	FRogueyGrid ChunkGrid;
+	ChunkGrid.Init(URogueyGridManager::ChunkSize, URogueyGridManager::ChunkSize);
+
+	const FIntPoint Chunk(2, 3);
+	Grid->LoadChunkTiles(Chunk, ChunkGrid);
+
+	// Tile (2*32, 3*32) = (64, 96) should now be in bounds
+	TestTrue("Corner tile in bounds after load",  Grid->IsInBounds(FIntVector2(64, 96)));
+	TestTrue("Interior tile in bounds after load", Grid->IsInBounds(FIntVector2(64 + 15, 96 + 15)));
+	// Tile one beyond the chunk edge should NOT exist
+	TestFalse("Tile past chunk edge out of bounds", Grid->IsInBounds(FIntVector2(64 + 32, 96)));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGrid_ChunkUnload, "Roguey.Grid.Chunk.Unload", GRID_TEST_FLAGS)
+bool FGrid_ChunkUnload::RunTest(const FString& Parameters)
+{
+	URogueyGridManager* Grid = NewObject<URogueyGridManager>(GetTransientPackage());
+
+	FRogueyGrid ChunkGrid;
+	ChunkGrid.Init(URogueyGridManager::ChunkSize, URogueyGridManager::ChunkSize);
+
+	const FIntPoint Chunk(2, 3);
+	Grid->LoadChunkTiles(Chunk, ChunkGrid);
+	Grid->UnloadChunkTiles(Chunk);
+
+	// All tiles in that chunk must be gone
+	TestFalse("Corner tile gone after unload",    Grid->IsInBounds(FIntVector2(64, 96)));
+	TestFalse("Interior tile gone after unload",  Grid->IsInBounds(FIntVector2(64 + 15, 96 + 15)));
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -363,4 +363,52 @@ bool FRogueyInv_Drop_OutOfBoundsNoOp::RunTest(const FString&)
 	return true;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Server_EquipFromInventory — edge cases that reject before the registry lookup
+// Note: the full equip path (item lookup + slot swap) requires the item registry
+// which is unavailable in editor automation tests. These tests only cover the
+// early-exit guards.
+// ─────────────────────────────────────────────────────────────────────────────
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueyInv_Equip_EmptySlotNoOp,
+	"Roguey.Inventory.Equip.EmptySlotNoOp", INV_TEST_FLAGS)
+bool FRogueyInv_Equip_EmptySlotNoOp::RunTest(const FString&)
+{
+	UWorld* World = GetEditorWorld_Inv();
+	if (!World) { AddWarning(TEXT("No editor world")); return true; }
+
+	ARogueyPawn* Pawn = SpawnInvTestPawn(World);
+	if (!TestNotNull("Pawn spawned", Pawn)) return false;
+
+	// Slot 0 is empty — equip should be a no-op
+	Pawn->Server_EquipFromInventory_Implementation(0);
+
+	TestTrue("Equipment map still empty after equip from empty slot",
+		Pawn->Equipment.IsEmpty());
+
+	Pawn->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueyInv_Equip_OutOfBoundsNoOp,
+	"Roguey.Inventory.Equip.OutOfBoundsNoOp", INV_TEST_FLAGS)
+bool FRogueyInv_Equip_OutOfBoundsNoOp::RunTest(const FString&)
+{
+	UWorld* World = GetEditorWorld_Inv();
+	if (!World) { AddWarning(TEXT("No editor world")); return true; }
+
+	ARogueyPawn* Pawn = SpawnInvTestPawn(World);
+	if (!TestNotNull("Pawn spawned", Pawn)) return false;
+
+	Pawn->Server_EquipFromInventory_Implementation(-1);
+	Pawn->Server_EquipFromInventory_Implementation(28);
+	Pawn->Server_EquipFromInventory_Implementation(999);
+
+	TestTrue("Equipment map still empty after out-of-bounds equip",
+		Pawn->Equipment.IsEmpty());
+
+	Pawn->Destroy();
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

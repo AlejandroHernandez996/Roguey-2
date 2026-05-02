@@ -3,6 +3,28 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Core/RogueyActionNames.h"
+
+TArray<FRogueyActionDef> ARogueyCharacter::GetActions() const
+{
+	return {
+		{ RogueyActions::Trade,   NSLOCTEXT("Roguey", "ActionTrade",   "Trade")   },
+		{ RogueyActions::Follow,  NSLOCTEXT("Roguey", "ActionFollow",  "Follow")  },
+		{ RogueyActions::Examine, NSLOCTEXT("Roguey", "ActionExamine", "Examine") },
+	};
+}
+
+FText ARogueyCharacter::GetTargetName() const
+{
+	if (!DisplayName.IsEmpty())
+		return FText::FromString(DisplayName);
+	return FText::FromString(TEXT("Adventurer"));
+}
+
+FString ARogueyCharacter::GetExamineText() const
+{
+	return TEXT("A fellow adventurer.");
+}
 
 ARogueyCharacter::ARogueyCharacter()
 {

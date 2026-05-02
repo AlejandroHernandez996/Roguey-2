@@ -1,0 +1,5 @@
+---,DisplayName,SpellPower,LevelRequired,RuneId,ProjectileColor
+spell_air_strike,Air Strike,8,1,rune_air,"(R=0.800000,G=0.950000,B=1.000000,A=1.000000)"
+spell_water_strike,Water Strike,10,5,rune_water,"(R=0.100000,G=0.400000,B=1.000000,A=1.000000)"
+spell_earth_strike,Earth Strike,12,9,rune_earth,"(R=0.300000,G=0.650000,B=0.100000,A=1.000000)"
+spell_fire_strike,Fire Strike,14,13,rune_fire,"(R=1.000000,G=0.300000,B=0.000000,A=1.000000)"

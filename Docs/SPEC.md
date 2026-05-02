@@ -76,7 +76,7 @@ GridManager → ActionManager → MovementManager → NpcManager → DeathManage
 |-------|------|-------------|
 | `FRogueyStatPage` | Struct | Map of `ERogueyStatType → FRogueyStat`. Holds base/current level for each skill. |
 | `FRogueyStat` | Struct | BaseLevel + CurrentLevel (boosted/drained). |
-| `ERogueyStatType` | Enum | Attack, Strength, Defence, Ranged, Magic, Hitpoints, Prayer. |
+| `ERogueyStatType` | Enum | Strength, Dexterity, Defence, Magic, Hitpoints, Prayer, Woodcutting, Mining. |
 
 ### UI
 

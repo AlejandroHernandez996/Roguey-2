@@ -19,13 +19,18 @@ struct ROGUEY_API FRogueyStatPage
 		HpStat.CurrentLevel = 10;
 		HpStat.BaseLevel    = 10;
 		Stats.Add(ERogueyStatType::Hitpoints, HpStat);
-		Stats.Add(ERogueyStatType::Melee,      FRogueyStat());
+		Stats.Add(ERogueyStatType::Strength,   FRogueyStat());
 		Stats.Add(ERogueyStatType::Defence,    FRogueyStat());
-		Stats.Add(ERogueyStatType::Ranged,     FRogueyStat());
+		Stats.Add(ERogueyStatType::Dexterity,  FRogueyStat());
 		Stats.Add(ERogueyStatType::Magic,      FRogueyStat());
-		Stats.Add(ERogueyStatType::Prayer,     FRogueyStat());
-		Stats.Add(ERogueyStatType::Woodcutting,FRogueyStat());
-		Stats.Add(ERogueyStatType::Mining,     FRogueyStat());
+		Stats.Add(ERogueyStatType::Prayer,       FRogueyStat());
+		Stats.Add(ERogueyStatType::Woodcutting,  FRogueyStat());
+		Stats.Add(ERogueyStatType::Mining,       FRogueyStat());
+		Stats.Add(ERogueyStatType::Fishing,      FRogueyStat());
+		Stats.Add(ERogueyStatType::Smithing,     FRogueyStat());
+		Stats.Add(ERogueyStatType::Fletching,    FRogueyStat());
+		Stats.Add(ERogueyStatType::Cooking,      FRogueyStat());
+		Stats.Add(ERogueyStatType::Runecrafting, FRogueyStat());
 	}
 
 	FRogueyStat& Get(ERogueyStatType Type) { return Stats.FindOrAdd(Type); }
